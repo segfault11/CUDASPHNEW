@@ -1,0 +1,153 @@
+﻿Build started 12/7/2012 4:07:46 PM.
+     1>Project "C:\Users\Arno\Documents\CUDASPHNEW\CUDASPHNEW\CUDASPHNEW.vcxproj" on node 2 (build target(s)).
+     1>PrepareForBuild:
+         Creating directory "C:\Users\Arno\Documents\CUDASPHNEW\Debug\".
+       InitializeBuildStatus:
+         Creating "Debug\CUDASPHNEW.unsuccessfulbuild" because "AlwaysCreate" was specified.
+       AddCudaCompileDeps:
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\cl.exe /E /nologo /showIncludes /TP /D__CUDACC__ /D_MBCS /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /I. /FIcuda_runtime.h /c C:\Users\Arno\Documents\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu 
+       AddCudaCompilePropsDeps:
+         Found "CudaToolkitCustomDir".
+         Found "AdditionalDeps".
+         Found "CompileOut".
+         Found "Include".
+         Found "UseHostInclude".
+         Found "Keep".
+         Found "KeepDir".
+         Found "GenerateRelocatableDeviceCode".
+         Found "NvccCompilation".
+         Found "NvccPath".
+         Found "RequiredIncludes".
+         Found "TargetMachinePlatform".
+         Found "CInterleavedPTX".
+         Found "CodeGeneration".
+         Found "GPUDebugInfo".
+         Found "GenerateLineInfo".
+         Found "MaxRegCount".
+         Found "PtxAsOptionV".
+         Found "AdditionalCompilerOptions".
+         Found "Defines".
+         Found "UseHostDefines".
+         Found "Emulation".
+         Found "HostDebugInfo".
+         Found "FastMath".
+         Found "Optimization".
+         Found "Runtime".
+         Found "RuntimeChecks".
+         Found "TypeInfo".
+         Found "Warning".
+         Found "AdditionalOptions".
+         Found "CommandLineTemplate".
+         Found "PerformDeviceLink".
+         Found "LinkOut".
+         Found "AdditionalLibraryDirectories".
+         Found "UseHostLibraryDirectories".
+         Found "AdditionalDependencies".
+         Found "UseHostLibraryDependencies".
+         Found "GPUDebugInfo".
+         Found "Optimization".
+         Found "CodeGeneration".
+         Found "TargetMachinePlatform".
+         Found "Warning".
+         Found "RuntimeChecks".
+         Found "Runtime".
+         Found "TypeInfo".
+         Found "AdditionalCompilerOptions".
+         Found "Inputs".
+         Found "AdditionalOptions".
+         Found "CommandLineTemplate".
+       CudaBuild:
+         Compiling CUDA source file particle_simulation.cu...
+         cmd.exe /C "C:\Users\Arno\AppData\Local\Temp\5c7ad01dae6347d0b5d6c0df83cfb845.cmd"
+         "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"  -G   --keep-dir "Debug" -maxrregcount=0  --machine 32 --compile  -g   -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o "Debug\particle_simulation.cu.obj" "C:\Users\Arno\Documents\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu"
+         
+         C:\Users\Arno\Documents\CUDASPHNEW\CUDASPHNEW>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"  -G   --keep-dir "Debug" -maxrregcount=0  --machine 32 --compile  -g   -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o "Debug\particle_simulation.cu.obj" "C:\Users\Arno\Documents\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu" 
+         particle_simulation.cu
+         tmpxft_00000dac_00000000-2_particle_simulation.cudafe1.gpu
+         tmpxft_00000dac_00000000-7_particle_simulation.cudafe2.gpu
+         particle_simulation.cu
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(27): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(28): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(28): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(29): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(27): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(28): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(28): warning : Cannot tell what pointer points to, assuming global memory space
+     1>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/swap.inl(29): warning : Cannot tell what pointer points to, assuming global memory space
+         tmpxft_00000dac_00000000-2_particle_simulation.cudafe1.cpp
+         tmpxft_00000dac_00000000-12_particle_simulation.ii
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(590): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(594): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(595): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(596): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(597): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(598): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(599): warning C4305: '=' : truncation from 'double' to 'float'
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(738): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(852): warning C4018: '<' : signed/unsigned mismatch
+     1>C:/Users/Arno/Documents/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(970): warning C4244: 'initializing' : conversion from 'double' to 'unsigned int', possible loss of data
+         Deleting file "tmpxft_00000dac_00000000-8_particle_simulation.cpp3.o".
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /ZI /nologo /W3 /WX- /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt cgtk\src\clock.c cgtk\src\error.c cgtk\src\geometry.c cgtk\src\math.c cgtk\src\opengl.c
+         opengl.c
+     1>c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\src\opengl.c(171): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(234) : see declaration of 'fopen'
+         math.c
+         geometry.c
+     1>c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\src\geometry.c(129): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(234) : see declaration of 'fopen'
+     1>c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\src\geometry.c(196): warning C4996: 'fscanf': This function or variable may be unsafe. Consider using fscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(253) : see declaration of 'fscanf'
+     1>c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\src\geometry.c(203): warning C4996: 'fscanf': This function or variable may be unsafe. Consider using fscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(253) : see declaration of 'fscanf'
+     1>c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\src\geometry.c(125): warning C4101: 'v' : unreferenced local variable
+         error.c
+         clock.c
+         Generating Code...
+     1>c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\src\geometry.c(116): warning C4715: 'delta' : not all control paths return a value
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /ZI /nologo /W3 /WX- /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp particle_renderer.cpp
+         particle_renderer.cpp
+         main.cpp
+         Generating Code...
+       ManifestResourceCompile:
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\rc.exe /nologo /fo"Debug\CUDASPHNEW.exe.embed.manifest.res" Debug\CUDASPHNEW_manifest.rc 
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\Win32" glew32.lib cudart.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Debug\CUDASPHNEW.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.lib" /MACHINE:X86 Debug\particle_simulation.cu.obj
+         Debug\CUDASPHNEW.exe.embed.manifest.res
+         Debug\clock.obj
+         Debug\error.obj
+         Debug\geometry.obj
+         Debug\math.obj
+         Debug\opengl.obj
+         Debug\main.obj
+         Debug\particle_renderer.obj
+       Manifest:
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /out:"Debug\CUDASPHNEW.exe.embed.manifest" /manifest Debug\CUDASPHNEW.exe.intermediate.manifest
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\rc.exe /nologo /fo"Debug\CUDASPHNEW.exe.embed.manifest.res" Debug\CUDASPHNEW_manifest.rc 
+       LinkEmbedManifest:
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\Win32" glew32.lib cudart.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Debug\CUDASPHNEW.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.lib" /MACHINE:X86 Debug\particle_simulation.cu.obj
+         Debug\CUDASPHNEW.exe.embed.manifest.res
+         Debug\clock.obj
+         Debug\error.obj
+         Debug\geometry.obj
+         Debug\math.obj
+         Debug\opengl.obj
+         Debug\main.obj
+         Debug\particle_renderer.obj
+         CUDASPHNEW.vcxproj -> C:\Users\Arno\Documents\CUDASPHNEW\Debug\CUDASPHNEW.exe
+       PostBuildEvent:
+         echo copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart*.dll" "C:\Users\Arno\Documents\CUDASPHNEW\Debug\"
+         copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart*.dll" "C:\Users\Arno\Documents\CUDASPHNEW\Debug\"
+         :VCEnd
+         copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart*.dll" "C:\Users\Arno\Documents\CUDASPHNEW\Debug\"
+         C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart32_50_35.dll
+         C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart64_50_35.dll
+                 2 file(s) copied.
+       FinalizeBuildStatus:
+         Deleting file "Debug\CUDASPHNEW.unsuccessfulbuild".
+         Touching "Debug\CUDASPHNEW.lastbuildstate".
+     1>Done Building Project "C:\Users\Arno\Documents\CUDASPHNEW\CUDASPHNEW\CUDASPHNEW.vcxproj" (build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:45.13

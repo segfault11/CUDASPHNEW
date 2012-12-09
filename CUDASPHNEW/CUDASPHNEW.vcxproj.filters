@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ParticleRenderer">
+      <UniqueIdentifier>{28df7bec-f9c8-4209-8d9e-01fcafa7ffed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation">
+      <UniqueIdentifier>{bfc45c10-2346-4625-b46f-5aa857f46ce3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utilities">
+      <UniqueIdentifier>{b088d4f3-64af-4727-896b-b7fd78f27c28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utilities\cgtk">
+      <UniqueIdentifier>{86eab8d4-1291-4932-bd0e-59df468de514}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="particle_renderer_f.glsl">
+      <Filter>ParticleRenderer</Filter>
+    </None>
+    <None Include="particle_renderer_g.glsl">
+      <Filter>ParticleRenderer</Filter>
+    </None>
+    <None Include="particle_renderer_v.glsl">
+      <Filter>ParticleRenderer</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="particle_renderer.cpp">
+      <Filter>ParticleRenderer</Filter>
+    </ClCompile>
+    <ClCompile Include="cgtk\src\clock.c">
+      <Filter>Utilities\cgtk</Filter>
+    </ClCompile>
+    <ClCompile Include="cgtk\src\error.c">
+      <Filter>Utilities\cgtk</Filter>
+    </ClCompile>
+    <ClCompile Include="cgtk\src\geometry.c">
+      <Filter>Utilities\cgtk</Filter>
+    </ClCompile>
+    <ClCompile Include="cgtk\src\math.c">
+      <Filter>Utilities\cgtk</Filter>
+    </ClCompile>
+    <ClCompile Include="cgtk\src\opengl.c">
+      <Filter>Utilities\cgtk</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="particle_renderer.h">
+      <Filter>ParticleRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="particle_simulation.h">
+      <Filter>ParticleSimulation</Filter>
+    </ClInclude>
+    <ClInclude Include="util.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="cgtk\include\clock.h">
+      <Filter>Utilities\cgtk</Filter>
+    </ClInclude>
+    <ClInclude Include="cgtk\include\error.h">
+      <Filter>Utilities\cgtk</Filter>
+    </ClInclude>
+    <ClInclude Include="cgtk\include\geometry.h">
+      <Filter>Utilities\cgtk</Filter>
+    </ClInclude>
+    <ClInclude Include="cgtk\include\math.h">
+      <Filter>Utilities\cgtk</Filter>
+    </ClInclude>
+    <ClInclude Include="cgtk\include\opengl.h">
+      <Filter>Utilities\cgtk</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="particle_simulation.cu">
+      <Filter>ParticleSimulation</Filter>
+    </CudaCompile>
+  </ItemGroup>
+</Project>
