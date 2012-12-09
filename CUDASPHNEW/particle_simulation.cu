@@ -15,7 +15,18 @@
 /** global device variables **************************************************/
 __constant__ SimulationParameters gSimParamsDev;
 
-texture<float, cudaTextureType1D, cudaReadModeElementType> gParticleVertexData;
+texture<float, cudaTextureType1D, cudaReadModeElementType> 
+    gParticleVertexData;
+texture<float, cudaTextureType1D, cudaReadModeElementType> 
+    gParticleSimulationData;
+texture<int, cudaTextureType1D, cudaReadModeElementType> 
+    gCellStartList;
+texture<int, cudaTextureType1D, cudaReadModeElementType> 
+    gCellEndList;
+texture<int, cudaTextureType1D, cudaReadModeElementType> 
+    gSortedParticleIdList;
+texture<int, cudaTextureType1D, cudaReadModeElementType> 
+    gParticleHashList;
 
 /** declaration of aux. functions (device) ***********************************/
 __device__ inline int3 compute_grid_coordinate(float3 pos, float d);
@@ -46,12 +57,12 @@ __global__ void compute_particle_hash(float* particleVertexData,
     }
 
     // calculate corresponding gridpoint
-    int x = (int)((*(particleVertexData + idx*VD_NUM_ELEMENTS + VD_POS_X) - 
+    int x = (int)((tex1Dfetch(gParticleVertexData, idx*VD_NUM_ELEMENTS + VD_POS_X) - 
 		gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacing);
-    int y = (int)((*(particleVertexData + idx*VD_NUM_ELEMENTS + VD_POS_Y) -
-		gSimParamsDev.gridOrigin[1])/gSimParamsDev.gridSpacing);
-    int z = (int)((*(particleVertexData + idx*VD_NUM_ELEMENTS + VD_POS_Z) -
-		gSimParamsDev.gridOrigin[2])/gSimParamsDev.gridSpacing);
+    int y = (int)((tex1Dfetch(gParticleVertexData, idx*VD_NUM_ELEMENTS + VD_POS_Y) - 
+		gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacing);
+    int z = (int)((tex1Dfetch(gParticleVertexData, idx*VD_NUM_ELEMENTS + VD_POS_Z) - 
+		gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacing);
 
     // wrap outer particles to grid
     // TODO: modulo operation using "&" is faster, requires grid dims of 
@@ -77,15 +88,16 @@ __global__ void compute_cell_start_end(int* particleHashList,
     int hash;
 
     if (idx < numParticles) {
-        hash = particleHashList[idx];
+        hash = tex1Dfetch(gParticleHashList, idx);
         sharedHash[threadIdx.x + 1] = hash;
         
         if (idx > 0 && threadIdx.x == 0) {
-            sharedHash[0] = particleHashList[idx - 1];
+            sharedHash[0] = tex1Dfetch(gParticleHashList, idx - 1);
         }
     }
 
     __syncthreads();
+
     if (idx < numParticles) {
         if (idx == 0 || hash != sharedHash[threadIdx.x]) {
             cellStartList[hash] = idx;
@@ -120,9 +132,9 @@ __global__ void compute_particle_density_pressure(float* particleVertexData,
     float3 pos;
 
     // get particles position form vertex data
-    pos.x = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
-    pos.y = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y];
-    pos.z = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z];
+    pos.x = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_X);
+    pos.y = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_Y);
+    pos.z = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_Z);
 
     int3 c0 = compute_grid_coordinate(pos, -gSimParamsDev.compactSupport);
     int3 c1 = compute_grid_coordinate(pos, gSimParamsDev.compactSupport);
@@ -135,8 +147,8 @@ __global__ void compute_particle_density_pressure(float* particleVertexData,
         for(int j = c0.y; j <= c1.y; j++) {
             for(int i = c0.x; i <= c1.x; i++) {
                 hash = compute_hash_from_grid_coordinate(i, j, k);
-                start = cellStartList[hash];
-                end = cellEndList[hash];
+                start = tex1Dfetch(gCellStartList, hash);
+                end = tex1Dfetch(gCellEndList, hash);
                 density += compute_particle_density_cell(pos, 
                     particleVertexData, particleIdList, start, end);
             }
@@ -161,21 +173,26 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
     if (idx >= gSimParamsDev.nParticles) {
         return;
     }
-
-    int id = particleIdList[idx];
-    float density  = particleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY];
-    float pressure = particleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE];
+    
+    int id = tex1Dfetch(gSortedParticleIdList, idx);
+    float density  = tex1Dfetch(gParticleSimulationData, id*SD_NUM_ELEMENTS
+        + SD_DENSITY);
+    float pressure = tex1Dfetch(gParticleSimulationData, id*SD_NUM_ELEMENTS
+        + SD_PRESSURE);
     float tenCoeff = gSimParamsDev.tensionCoefficient;
 
     float3 pos;
-    pos.x = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
-    pos.y = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y];
-    pos.z = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z];
+    pos.x = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_X);
+    pos.y = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_Y);
+    pos.z = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_Z);
 
     float3 vel;
-    vel.x = particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X];
-    vel.y = particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y];
-    vel.z = particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z];
+    vel.x = tex1Dfetch(gParticleSimulationData, 
+        id*SD_NUM_ELEMENTS + SD_VEL0_X);
+    vel.y = tex1Dfetch(gParticleSimulationData, 
+        id*SD_NUM_ELEMENTS + SD_VEL0_Y);
+    vel.z = tex1Dfetch(gParticleSimulationData, 
+        id*SD_NUM_ELEMENTS + SD_VEL0_Z);
 
     int3 c0 = compute_grid_coordinate(pos, -gSimParamsDev.compactSupport);
     int3 c1 = compute_grid_coordinate(pos, gSimParamsDev.compactSupport);
@@ -206,9 +223,8 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
             for(int i = c0.x; i <= c1.x; i++)
             {
                 hash  = compute_hash_from_grid_coordinate(i, j, k);
-                start = cellStartList[hash];
-                end   = cellEndList[hash];
-                
+                start = tex1Dfetch(gCellStartList, hash);
+                end = tex1Dfetch(gCellEndList, hash);
                 compute_viscosity_pressure_forces_cell(pos, density, 
                     pressure, vel, particleVertexData, particleSimulationData,
                     particleIdList, start, end, &force, &colGra, &colLapl);
@@ -249,11 +265,11 @@ __global__ void integrate_euler(float* particleVertexData,
     float dt = gSimParamsDev.timeStep;
 
     particleSimulationData[idSim + SD_VEL0_X] += 
-        dt*particleSimulationData[idSim + SD_ACC_X];
+        dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_X);
     particleSimulationData[idSim + SD_VEL0_Y] += 
-        dt*particleSimulationData[idSim + SD_ACC_Y];
+        dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_Y);
     particleSimulationData[idSim + SD_VEL0_Z] += 
-        dt*particleSimulationData[idSim + SD_ACC_Z];
+        dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_Z);
 
     particleVertexData[idVert + VD_POS_X] += 
         dt*particleSimulationData[idSim + SD_VEL0_X];
@@ -279,13 +295,13 @@ __global__ void collision_handling(float* particleVertexData,
     float3 pos;
     float3 vel;
 
-    pos.x = particleVertexData[idVert + VD_POS_X];
-    pos.y = particleVertexData[idVert + VD_POS_Y];
-    pos.z = particleVertexData[idVert + VD_POS_Z];   
+    pos.x = tex1Dfetch(gParticleVertexData, idVert + VD_POS_X);
+    pos.y = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Y);
+    pos.z = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Z);
 
-    vel.x = particleSimulationData[idSim + SD_VEL0_X];
-    vel.y = particleSimulationData[idSim + SD_VEL0_Y];
-    vel.z = particleSimulationData[idSim + SD_VEL0_Z];
+    vel.x = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_X);
+    vel.y = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Y);
+    vel.z = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Z);
 
     float3 local;
     float3 diff;
@@ -403,7 +419,8 @@ __device__ inline void normalize(float3& a)
 */
 __device__ inline float compute_distance(float3 a, float3 b)
 {
-    return sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y)+(a.z-b.z)*(a.z-b.z));
+    return sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y) 
++ (a.z-b.z)*(a.z-b.z));
 }
 
 __device__ inline float dot_product(const float3& a, const float3& b)  
@@ -425,12 +442,15 @@ __device__ float compute_particle_density_cell(const float3 &pos,
     float d;
 
     for (int i = start; i < end; i++) {
-        particleIndex = particleIdList[i];
+        particleIndex = tex1Dfetch(gSortedParticleIdList, i);
 
         // compute position of the neighbor
-        p.x = particleVertexData[particleIndex*VD_NUM_ELEMENTS + VD_POS_X];
-        p.y = particleVertexData[particleIndex*VD_NUM_ELEMENTS + VD_POS_Y];
-        p.z = particleVertexData[particleIndex*VD_NUM_ELEMENTS + VD_POS_Z];
+        p.x = tex1Dfetch(gParticleVertexData, particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_X);
+        p.y = tex1Dfetch(gParticleVertexData, particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_Y);
+        p.z = tex1Dfetch(gParticleVertexData, particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_Z);
 
         r = compute_distance(p, pos);
         
@@ -475,14 +495,19 @@ __device__ inline void compute_viscosity_pressure_forces_cell(const float3& xi,
         j = particleIdList[i]; 
 
         // get neighbor particle information
-        xj.x = particleVertexData[j*VD_NUM_ELEMENTS + VD_POS_X];
-        xj.y = particleVertexData[j*VD_NUM_ELEMENTS + VD_POS_Y];
-        xj.z = particleVertexData[j*VD_NUM_ELEMENTS + VD_POS_Z];
-        vj.x = particleSimulationData[j*SD_NUM_ELEMENTS + SD_VEL0_X];
-        vj.y = particleSimulationData[j*SD_NUM_ELEMENTS + SD_VEL0_Y];
-        vj.z = particleSimulationData[j*SD_NUM_ELEMENTS + SD_VEL0_Z];
-        rhoj = particleSimulationData[j*SD_NUM_ELEMENTS + SD_DENSITY];
-        pj   = particleSimulationData[j*SD_NUM_ELEMENTS + SD_PRESSURE];
+        xj.x = tex1Dfetch(gParticleVertexData, j*VD_NUM_ELEMENTS + VD_POS_X);
+        xj.y = tex1Dfetch(gParticleVertexData, j*VD_NUM_ELEMENTS + VD_POS_Y);
+        xj.z = tex1Dfetch(gParticleVertexData, j*VD_NUM_ELEMENTS + VD_POS_Z);
+        vj.x = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_VEL0_X);
+        vj.y = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_VEL0_Y);
+        vj.z = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_VEL0_Z);
+        rhoj = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_DENSITY);
+        pj   = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_PRESSURE);
 
         r.x = xi.x - xj.x;
         r.y = xi.y - xj.y;
@@ -704,12 +729,29 @@ void ParticleSimulation::init()
     CUDA_SAFE_CALL( cudaMalloc(&_particleHashListDevPtr, 
         _parameters.nParticles*sizeof(int)) );
 
-    // set up textures
-    cudaChannelFormatDesc cdesc = cudaCreateChannelDesc(32, 0, 0, 0,
+    // set up textures, for faster memory look-ups through caching
+    // NOTE: VertexData needs to be mapped to get a valid device pointer.
+    cudaChannelFormatDesc descf = cudaCreateChannelDesc(32, 0, 0, 0,
 		cudaChannelFormatKindFloat);
-    CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleVertexData, 
-        _particleSimulationDataDevPtr, cdesc, 
+    cudaChannelFormatDesc desci = cudaCreateChannelDesc(32, 0, 0, 0,
+		cudaChannelFormatKindSigned);
+
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleSimulationData, 
+        _particleSimulationDataDevPtr, descf, 
         sizeof(float)*SD_NUM_ELEMENTS*_parameters.nParticles) );
+    this->map();
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleVertexData, 
+        _particleVertexDataDevPtr, descf, 
+        sizeof(float)*VD_NUM_ELEMENTS*_parameters.nParticles) );
+    this->unmap();
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gCellStartList, _cellStartListDevPtr, 
+        desci, size) );
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gCellEndList, _cellEndListDevPtr, 
+        desci, size) );
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gSortedParticleIdList, _particleIdListDevPtr, 
+        desci, _parameters.nParticles*sizeof(int)) );
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleHashList, _particleHashListDevPtr, 
+        desci, _parameters.nParticles*sizeof(int)) );
 
     // set number of CUDA blocks and threads per blocks for each kernel 
     // invocation

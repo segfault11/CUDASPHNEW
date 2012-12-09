@@ -1132,6 +1132,15 @@ C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\ime_cmodes.h
 C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\gl\glew.h
 C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\GL/glu.h
 C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\GL/gl.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\cuda_gl_interop.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\builtin_types.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\device_types.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\driver_types.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\surface_types.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\texture_types.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\vector_types.h
+c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\host_defines.h
+C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\GL/gl.h
 c:\users\arno\documents\cudasphnew\cudasphnew\util.h
 C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\gl\glew.h
 C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\gl\glut.h
@@ -1142,13 +1151,5 @@ C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\gl\freeglut_ext.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\cuda.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\cuda_runtime.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\cuda_gl_interop.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\builtin_types.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\device_types.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\driver_types.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\surface_types.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\texture_types.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\vector_types.h
-c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\host_defines.h
-C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\GL/gl.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sstream
 c:\users\arno\documents\cudasphnew\cudasphnew\cgtk\include\clock.h
