@@ -43,7 +43,7 @@ inline void throwException(const char* message, const char* filename,
 
     stringstream str(stringstream::in | stringstream::out);
 
-    str << "Exception thrown in FILE: " << filename << "LINE: " << line << endl;
+    str << "Exception thrown in FILE: " << filename << " LINE: " << line << endl;
     str << "Error Message: " << message << endl;
 
     throw runtime_error(str.str());

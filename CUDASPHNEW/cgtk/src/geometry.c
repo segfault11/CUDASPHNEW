@@ -129,7 +129,6 @@ bool read_obj_file(const char* filename, CGTKObjFile* objFile) {
 	pFile = fopen(filename, "r");
 	
 	if (pFile == NULL) {
-		fclose(pFile);
 		return false;
 	}
 	

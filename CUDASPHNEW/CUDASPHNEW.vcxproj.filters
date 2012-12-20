@@ -13,22 +13,70 @@
     <Filter Include="Utilities\cgtk">
       <UniqueIdentifier>{86eab8d4-1291-4932-bd0e-59df468de514}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ParticleRenderer\ParticleRenderer02">
+      <UniqueIdentifier>{befc80be-d092-4803-a7d1-188f07ea1df9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleRenderer\ParticleRenderer01">
+      <UniqueIdentifier>{297b71f6-951b-4919-b55d-679418052043}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation\BoundaryHandling">
+      <UniqueIdentifier>{776620a6-622f-4c37-b53d-065ab7078385}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation\BoundaryHandling\Obstacle">
+      <UniqueIdentifier>{7433d34f-e348-436f-971f-6d363d826f19}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation\BoundaryHandling\ObstacleGrid">
+      <UniqueIdentifier>{477f1d53-6cb5-4efc-964c-518b0527745d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation\BoundaryHandling\ObstacleRenderer">
+      <UniqueIdentifier>{49c5a0b6-ec39-402d-85fc-f8840ef7a485}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utilities\math">
+      <UniqueIdentifier>{60c13aff-403a-4f2d-b2eb-2f74e37eb347}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation\ParticleSimulation">
+      <UniqueIdentifier>{65308a25-48d9-4e2c-9656-ac57047a8f16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utilities\ppm">
+      <UniqueIdentifier>{d09a769d-7ce9-46dd-82f2-a290f20f4679}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="particle_renderer_f.glsl">
-      <Filter>ParticleRenderer</Filter>
+    <None Include="particle_renderer01_f.glsl">
+      <Filter>ParticleRenderer\ParticleRenderer01</Filter>
     </None>
-    <None Include="particle_renderer_g.glsl">
-      <Filter>ParticleRenderer</Filter>
+    <None Include="particle_renderer01_g.glsl">
+      <Filter>ParticleRenderer\ParticleRenderer01</Filter>
     </None>
-    <None Include="particle_renderer_v.glsl">
-      <Filter>ParticleRenderer</Filter>
+    <None Include="particle_renderer01_v.glsl">
+      <Filter>ParticleRenderer\ParticleRenderer01</Filter>
+    </None>
+    <None Include="particle_renderer02_f.glsl">
+      <Filter>ParticleRenderer\ParticleRenderer02</Filter>
+    </None>
+    <None Include="particle_renderer02_g.glsl">
+      <Filter>ParticleRenderer\ParticleRenderer02</Filter>
+    </None>
+    <None Include="particle_renderer02_v.glsl">
+      <Filter>ParticleRenderer\ParticleRenderer02</Filter>
+    </None>
+    <None Include="obstacle_renderer_f.glsl">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
+    </None>
+    <None Include="obstacle_renderer_v.glsl">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
+    </None>
+    <None Include="obstacle_renderer_bb_v.glsl">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
+    </None>
+    <None Include="obstacle_renderer_bb_g.glsl">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
+    </None>
+    <None Include="obstacle_renderer_bb_f.glsl">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="particle_renderer.cpp">
-      <Filter>ParticleRenderer</Filter>
-    </ClCompile>
     <ClCompile Include="cgtk\src\clock.c">
       <Filter>Utilities\cgtk</Filter>
     </ClCompile>
@@ -44,14 +92,30 @@
     <ClCompile Include="cgtk\src\opengl.c">
       <Filter>Utilities\cgtk</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="particle_renderer01.cpp">
+      <Filter>ParticleRenderer\ParticleRenderer01</Filter>
+    </ClCompile>
+    <ClCompile Include="particle_renderer02.cpp">
+      <Filter>ParticleRenderer\ParticleRenderer02</Filter>
+    </ClCompile>
+    <ClCompile Include="obstacle.cpp">
+      <Filter>ParticleSimulation\BoundaryHandling\Obstacle</Filter>
+    </ClCompile>
+    <ClCompile Include="obstacle_renderer.cpp">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
+    </ClCompile>
+    <ClCompile Include="vector3f.cpp">
+      <Filter>Utilities\math</Filter>
+    </ClCompile>
+    <ClCompile Include="rectangle3f.cpp">
+      <Filter>Utilities\math</Filter>
+    </ClCompile>
+    <ClCompile Include="portable_pixmap.cpp">
+      <Filter>Utilities\ppm</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="particle_renderer.h">
-      <Filter>ParticleRenderer</Filter>
-    </ClInclude>
-    <ClInclude Include="particle_simulation.h">
-      <Filter>ParticleSimulation</Filter>
-    </ClInclude>
     <ClInclude Include="util.h">
       <Filter>Utilities</Filter>
     </ClInclude>
@@ -70,10 +134,40 @@
     <ClInclude Include="cgtk\include\opengl.h">
       <Filter>Utilities\cgtk</Filter>
     </ClInclude>
+    <ClInclude Include="particle_renderer01.h">
+      <Filter>ParticleRenderer\ParticleRenderer01</Filter>
+    </ClInclude>
+    <ClInclude Include="particle_renderer02.h">
+      <Filter>ParticleRenderer\ParticleRenderer02</Filter>
+    </ClInclude>
+    <ClInclude Include="obstacle.h">
+      <Filter>ParticleSimulation\BoundaryHandling\Obstacle</Filter>
+    </ClInclude>
+    <ClInclude Include="obstacle_grid.h">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleGrid</Filter>
+    </ClInclude>
+    <ClInclude Include="obstacle_renderer.h">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="rectangle3f.h">
+      <Filter>Utilities\math</Filter>
+    </ClInclude>
+    <ClInclude Include="vector3f.h">
+      <Filter>Utilities\math</Filter>
+    </ClInclude>
+    <ClInclude Include="particle_simulation.h">
+      <Filter>ParticleSimulation\ParticleSimulation</Filter>
+    </ClInclude>
+    <ClInclude Include="portable_pixmap.h">
+      <Filter>Utilities\ppm</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="obstacle_grid.cpp">
+      <Filter>ParticleSimulation\BoundaryHandling\ObstacleGrid</Filter>
+    </CudaCompile>
     <CudaCompile Include="particle_simulation.cu">
-      <Filter>ParticleSimulation</Filter>
+      <Filter>ParticleSimulation\ParticleSimulation</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

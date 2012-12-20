@@ -1,0 +1,14 @@
+# Blender v2.65 (sub 0) OBJ File: ''
+# www.blender.org
+mtllib pyramid.mtl
+o Solid
+v 0.035430 1.031004 0.066696
+v 0.978239 -0.302330 0.066696
+v -0.435974 -0.302330 -0.749800
+v -0.435974 -0.302330 0.883193
+usemtl None
+s off
+f 1 2 3
+f 1 3 4
+f 1 4 2
+f 2 4 3

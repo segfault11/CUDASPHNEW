@@ -37,10 +37,12 @@ __device__ inline void normalize(float3& a);
 __device__ inline float dot_product(const float3& a, const float3& b);
 __device__ float compute_particle_density_cell(const float3 &pos, 
 	float* pParticleList, int* pParticleIdList, int start, int end);
-__device__ inline void compute_viscosity_pressure_forces_cell(const float3& xi, 
-    float rhoi, float pi, const float3& vi, float* particleVertexData, 
-	float* particleSimulationData, int* particleIdList, int start, int end, 
-    float3* force, float3* colGra, float* colLapl);
+__device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
+    const float3& xi, float rhoi, float pi, const float3& vi,
+    float* particleVertexData, float* particleSimulationData, 
+    int* particleIdList, int start, int end, 
+    float3* force, float3* colGra, float* colLapl,
+    float3* sumPosNeighbor, float* nNeighbors);
 
 
 /** CUDA Kernel definitions **************************************************/
@@ -164,9 +166,9 @@ __global__ void compute_particle_density_pressure(float* particleVertexData,
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE] = pressure; 
 }
 
-__global__ void compute_particle_acceleration(float* particleVertexData, 
+__global__ void compute_particle_acceleration_ifsurf(float* particleVertexData, 
 	float* particleSimulationData, int* particleIdList, int* cellStartList,
-    int* cellEndList)
+    int* cellEndList, int* isSurfaceParticle)
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -175,6 +177,7 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
     }
     
     int id = tex1Dfetch(gSortedParticleIdList, idx);
+
     float density  = tex1Dfetch(gParticleSimulationData, id*SD_NUM_ELEMENTS
         + SD_DENSITY);
     float pressure = tex1Dfetch(gParticleSimulationData, id*SD_NUM_ELEMENTS
@@ -207,6 +210,16 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
     colGra.y = 0.0f;
     colGra.z = 0.0f;
 
+    // [sumPosNeigbor] and [nNeigbors] are used to computed the center of mass
+    // of the neighborhood of this particle (this also includes the particle
+    // itself
+    float3 sumPosNeighbor;
+    sumPosNeighbor.x = pos.x;
+    sumPosNeighbor.x = pos.y;
+    sumPosNeighbor.x = pos.z;
+
+    float nNeighbors = 1.0f;
+
     float colLapl;
     float colGraNorm;
     float grav = gSimParamsDev.gravity;
@@ -225,9 +238,10 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
                 hash  = compute_hash_from_grid_coordinate(i, j, k);
                 start = tex1Dfetch(gCellStartList, hash);
                 end = tex1Dfetch(gCellEndList, hash);
-                compute_viscosity_pressure_forces_cell(pos, density, 
+                compute_viscosity_pressure_forces_and_ifsurf_cell(pos, density, 
                     pressure, vel, particleVertexData, particleSimulationData,
-                    particleIdList, start, end, &force, &colGra, &colLapl);
+                    particleIdList, start, end, &force, &colGra, &colLapl,
+                    &sumPosNeighbor, &nNeighbors);
             }
         }
     }
@@ -237,8 +251,8 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
         + colGra.z*colGra.z);
 
     float fCoeff = tenCoeff*colLapl/colGraNorm;
-    if(colGraNorm > gSimParamsDev.normThresh)
-    {
+
+    if(colGraNorm > gSimParamsDev.normThresh) {
         force.x -= fCoeff*colGra.x;
         force.y -= fCoeff*colGra.y;
         force.z -= fCoeff*colGra.z;
@@ -249,6 +263,23 @@ __global__ void compute_particle_acceleration(float* particleVertexData,
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Y] = force.y/density
         - grav;  
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Z] = force.z/density;  
+
+    // find out if particle is a surface particle
+    int isSurface = 0;
+
+    float3 dCenterMass;
+    dCenterMass.x = pos.x - sumPosNeighbor.x/nNeighbors;
+    dCenterMass.y = pos.y - sumPosNeighbor.y/nNeighbors;
+    dCenterMass.z = pos.z - sumPosNeighbor.z/nNeighbors;
+
+    float dCenterMassNormSq = dCenterMass.x*dCenterMass.x +
+        dCenterMass.y*dCenterMass.y + dCenterMass.z*dCenterMass.z;
+
+    if (colGraNorm > gSimParamsDev.normThresh) {
+        isSurfaceParticle[id] = 1;
+    } else {
+        isSurfaceParticle[id] = 0;
+    }
 }
 
 __global__ void integrate_euler(float* particleVertexData, 
@@ -420,7 +451,7 @@ __device__ inline void normalize(float3& a)
 __device__ inline float compute_distance(float3 a, float3 b)
 {
     return sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y) 
-+ (a.z-b.z)*(a.z-b.z));
+        + (a.z-b.z)*(a.z-b.z));
 }
 
 __device__ inline float dot_product(const float3& a, const float3& b)  
@@ -465,10 +496,12 @@ __device__ float compute_particle_density_cell(const float3 &pos,
     return density;
 }
 
-__device__ inline void compute_viscosity_pressure_forces_cell(const float3& xi, 
-    float rhoi, float pi, const float3& vi, float* particleVertexData, 
-	float* particleSimulationData, int* particleIdList, int start, int end, 
-    float3* force, float3* colGra, float* colLapl)
+__device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
+    const float3& xi, float rhoi, float pi, const float3& vi,
+    float* particleVertexData, float* particleSimulationData, 
+    int* particleIdList, int start, int end, 
+    float3* force, float3* colGra, float* colLapl,
+    float3* sumPosNeighbor, float* nNeighbors)
 {
     int j;  // neighbor index in particle list
     float3 xj;  // neighbor particle's position
@@ -550,6 +583,12 @@ __device__ inline void compute_viscosity_pressure_forces_cell(const float3& xi,
             d = (h*h - rn*rn)*(3.0f*h*h - 7.0f*rn*rn);
 
             *colLapl += m/rhoj*lapl2*d;
+
+            //
+            sumPosNeighbor->x += xj.x;
+            sumPosNeighbor->y += xj.y;
+            sumPosNeighbor->z += xj.z;
+            *nNeighbors += 1.0f;
         }
     }
 }
@@ -576,7 +615,8 @@ ParticleSimulation::ParticleSimulation(): _particleVertexData(NULL),
     _particleSimulationData(NULL), _particleVertexDataDevPtr(NULL),
     _particleSimulationDataDevPtr(NULL), _particleIdListDevPtr(NULL),
     _particleHashListDevPtr(NULL), _cellStartListDevPtr(NULL), 
-    _cellEndListDevPtr(NULL), _particleVbo(0), _blocks(0), _threadsPerBlock(0)
+    _cellEndListDevPtr(NULL), _isSurfaceParticleDevPtr(NULL), _particleVbo(0),
+    _blocks(0), _threadsPerBlock(0)
 {
     memset(&_parameters, 0, sizeof(SimulationParameters));
 }
@@ -611,7 +651,7 @@ ParticleSimulation* ParticleSimulation::example01()
     sim->_parameters.dynamicViscosity = 3.0f;
     sim->_parameters.gravity = 9.81f;
     sim->_parameters.tensionCoefficient = 0.0728f;
-    sim->_parameters.normThresh = 7.065f;
+    sim->_parameters.normThresh = 15.065f;
 
     // compute the kernel radius
     float h = powf((3.0f*0.5f*0.5f*0.5f*sim->_parameters.kernelParticles)/
@@ -626,7 +666,7 @@ ParticleSimulation* ParticleSimulation::example01()
     sim->_parameters.timeStep = 0.003;
     
     // set the simulation domain
-    set_simulation_domain(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0, h, 
+    set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, 
         &sim->_parameters);
 
     // set fluid volume
@@ -641,7 +681,44 @@ ParticleSimulation* ParticleSimulation::example01()
     sim->_parameters.boxDim[1] = 0.5f;    
     sim->_parameters.boxDim[2] = 0.3f;    
 
+    // set parameters for surface extraction
+    sim->_parameters.cmDistanceThresh = 0.5f;
+    sim->_parameters.nPartTresh = 20.0f;
+    sim->_leftI = 0.0f;
+    sim->_rightI = 1.0f;
+    //printf("h %")
     return sim;
+}
+
+int* ParticleSimulation::createIsParticleSurfaceList(
+    const ParticleSimulation* sim)
+{
+    int* isSurfaceParticleList = new int[sim->_parameters.nParticles];
+    
+    CUDA_SAFE_CALL( cudaMemcpy(isSurfaceParticleList, 
+        sim->_isSurfaceParticleDevPtr,
+        sizeof(int)*sim->_parameters.nParticles, 
+        cudaMemcpyDeviceToHost) );
+
+    int extr = 0;
+    for (unsigned int i = 0; i < sim->_parameters.nParticles; i++) {
+       extr += isSurfaceParticleList[i];
+    }
+
+    printf("%d of %d extracted\n", extr, sim->_parameters.nParticles);
+    
+
+    return isSurfaceParticleList;
+}
+
+void ParticleSimulation::freeIsParticleSurfaceList(int** isSurfaceParticleList)
+{
+    if (*isSurfaceParticleList == NULL) {
+        return;
+    }
+
+    delete[] *isSurfaceParticleList;
+    *isSurfaceParticleList = NULL;
 }
 
 void ParticleSimulation::freeAll() 
@@ -658,6 +735,7 @@ void ParticleSimulation::freeAll()
     cudaSafeFree<int>(&_particleHashListDevPtr);
     cudaSafeFree<int>(&_cellStartListDevPtr);
     cudaSafeFree<int>(&_cellEndListDevPtr);
+    cudaSafeFree<int>(&_isSurfaceParticleDevPtr);
     
     // free OpenGL vertex buffer object
     if (_particleVbo != 0) {
@@ -678,6 +756,7 @@ void ParticleSimulation::init()
     cudaSafeFree<int>(&_particleHashListDevPtr);
     cudaSafeFree<int>(&_cellStartListDevPtr);
     cudaSafeFree<int>(&_cellEndListDevPtr);
+    cudaSafeFree<int>(&_isSurfaceParticleDevPtr);
     
     // free OpenGL vertex buffer object
     if (_particleVbo != 0) {
@@ -713,7 +792,7 @@ void ParticleSimulation::init()
         _particleVbo, cudaGraphicsMapFlagsNone) );
     //cudaGLRegisterBufferObject(_particleVbo); // <- is deprecated
     
-    // init additional aux. arrays for nearest neighbor search
+    // alloc & init additional aux. arrays for nearest neighbor search
     const int* dim = _parameters.gridDim; 
     unsigned int size = dim[0]*dim[1]*dim[2]*sizeof(int);
 
@@ -729,8 +808,13 @@ void ParticleSimulation::init()
     CUDA_SAFE_CALL( cudaMalloc(&_particleHashListDevPtr, 
         _parameters.nParticles*sizeof(int)) );
 
+    // alloc dev memory for surface particle extraction
+    CUDA_SAFE_CALL( cudaMalloc(&_isSurfaceParticleDevPtr, 
+        _parameters.nParticles*sizeof(int)) );
+
     // set up textures, for faster memory look-ups through caching
-    // NOTE: VertexData needs to be mapped to get a valid device pointer.
+    // NOTE: VertexData needs to be mapped to get a valid device pointer, 
+    //       as it is initial not allocated through CUDA's malloc
     cudaChannelFormatDesc descf = cudaCreateChannelDesc(32, 0, 0, 0,
 		cudaChannelFormatKindFloat);
     cudaChannelFormatDesc desci = cudaCreateChannelDesc(32, 0, 0, 0,
@@ -776,15 +860,15 @@ void ParticleSimulation::advance()
 {
     cgtkClockStart();
     this->map();
+    this->integrate();
+    this->handleCollisions();
     this->computeParticleHash();
     this->sortParticleIdsByHash();
     this->computeCellStartEndList();
     this->computeDensityPressure();
     this->computeAcceleration();
-    this->integrate();
-    this->handleCollisions();
     this->unmap();
-    cgtkClockDumpElapsed();
+    //cgtkClockDumpElapsed();
 }
 
 float ParticleSimulation::getParticleRadius() const
@@ -796,6 +880,27 @@ float ParticleSimulation::getParticleRadius() const
 unsigned int ParticleSimulation::getNumParticles() const
 {
     return _parameters.nParticles;
+}
+
+void ParticleSimulation::setNPartThresh(float dVal)
+{
+    _parameters.nPartTresh += dVal;
+    printf("# particle thresh %f\n", _parameters.nPartTresh);
+    this->bind();
+}
+
+void ParticleSimulation::decreaseCmDistanceThresh() {
+    _rightI = _parameters.cmDistanceThresh;
+    _parameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
+    printf("cmDistance = %f\n", _parameters.cmDistanceThresh);
+        this->bind();
+}
+
+void ParticleSimulation::increaseCmDistanceThresh() {
+    _leftI = _parameters.cmDistanceThresh;
+    _parameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
+    printf("cmDistance = %f\n", _parameters.cmDistanceThresh);
+        this->bind();
 }
 
 GLuint ParticleSimulation::getGLVertexBufferObject() const
@@ -842,9 +947,10 @@ void ParticleSimulation::computeDensityPressure()
 
 void ParticleSimulation::computeAcceleration()
 {
-    compute_particle_acceleration <<< _blocks, _threadsPerBlock >>> 
+    compute_particle_acceleration_ifsurf <<< _blocks, _threadsPerBlock >>> 
         (_particleVertexDataDevPtr, _particleSimulationDataDevPtr, 
-        _particleIdListDevPtr, _cellStartListDevPtr, _cellEndListDevPtr);
+        _particleIdListDevPtr, _cellStartListDevPtr, _cellEndListDevPtr,
+        _isSurfaceParticleDevPtr);
 }
 
 void ParticleSimulation::integrate()

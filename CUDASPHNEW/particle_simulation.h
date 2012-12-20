@@ -72,6 +72,10 @@ struct SimulationParameters
     float gradSpiky;
     float laplVisc;
 
+    /* surface extraction threshold parameters */
+    float cmDistanceThresh;
+    float nPartTresh;
+
     /* provisional collision handling */
     float boxDim[3];            /* Vector pointing from the box center to the 
                                 ** upper right point of the box */
@@ -118,6 +122,11 @@ public:
 
     unsigned int getNumParticles() const;
 
+
+    void setNPartThresh(float val);
+    void increaseCmDistanceThresh();
+    void decreaseCmDistanceThresh();
+
     void saveInfoTable(const std::string& filename);
     void saveParticleInfo(const std::string& filename);
 
@@ -132,6 +141,18 @@ public:
     *** a rectangular container.
     **/
     static ParticleSimulation* example01();
+    
+    /** @brief Creates a list, that indicates whether a particle belongs to \
+    ***        the surface layer or not.
+    ***
+    *** Creates a list, that indicates whether a particle of simulation belongs 
+    *** to the surface layer or not. The list resides in host memory.
+    **/
+    static int* createIsParticleSurfaceList(const ParticleSimulation* sim);
+
+    /** @brief Frees an isSurfaceParticleList
+    **/
+    static void freeIsParticleSurfaceList(int** isSurfaceParticleList);
 
 /* convenience locks */
 private:
@@ -159,6 +180,7 @@ private:
     inline void computeAcceleration();
     inline void integrate();
     inline void handleCollisions();
+    inline void extractSurfaceParticles();
 
 /* Member declarations */
 private:
@@ -171,7 +193,9 @@ private:
 
     /* OpenGL interop information */
     GLuint _particleVbo;
+    GLuint _surfaceParticlesVbo;
     cudaGraphicsResource_t _graphicsResource;
+    unsigned int _nSurfaceParticles;
 
     /* CUDA (device) information */
     float* _particleVertexDataDevPtr;         
@@ -179,13 +203,18 @@ private:
     int* _particleIdListDevPtr;        
     int* _particleHashListDevPtr;       
     int* _cellStartListDevPtr;          
-    int* _cellEndListDevPtr;            
+    int* _cellEndListDevPtr;         
+    int* _isSurfaceParticleDevPtr;
     unsigned int _blocks;                   /* number of CUDA blocks */
     unsigned int _threadsPerBlock;          /* number of threads per block */
 
     /* Host and device information */
     SimulationParameters _parameters;       /* simulation parameters */
 
+
+    /* */
+    float _leftI;
+    float _rightI;
 };
 
 #endif /*include guard of: particle_simulation.h */

@@ -6,9 +6,15 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "particle_simulation.h"
-#include "particle_renderer.h"
+#include "particle_renderer01.h"
+#include "particle_renderer02.h"
+#include "obstacle.h"
+#include "obstacle_renderer.h"
+#include "obstacle_grid.h"
 #include <stdexcept>
 #include <iostream>
+#include <exception>
+#include "portable_pixmap.h"
 
 void display();
 void keyboard(unsigned char key, int x, int y);
@@ -16,12 +22,15 @@ void init();
 
 
 ParticleSimulation* gSim;
-ParticleRenderer* gRenderer;
-
+ParticleRenderer02* gRenderer;
+Obstacle* gObstacle;
+ObstacleRenderer* gObstacleRenderer;
+ObstacleGrid* gObstacleGrid;
+bool gPause;
 
 int main(int argc, char* argv[]) 
 {
-    //cudaGLSetGLDevice(0);    
+    cudaGLSetGLDevice(0);    
     glutInit(&argc, argv);
     glutInitContextVersion(3, 3);
     glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
@@ -29,7 +38,7 @@ int main(int argc, char* argv[])
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 	//int width = glutGet(GLUT_SCREEN_WIDTH);
 	//int height = glutGet(GLUT_SCREEN_HEIGHT);
-	glutInitWindowSize(1280, 800);
+    glutInitWindowSize(1280, 800);
     glutCreateWindow("SPH CUDA");
 	glewExperimental = TRUE;
 	glewInit();
@@ -44,13 +53,34 @@ int main(int argc, char* argv[])
 void init() 
 {
     try {
-        gSim = ParticleSimulation::example01();
+        gPause = false;
+
+        /*gSim = ParticleSimulation::example01();
         gSim->init();
         gSim->bind();
 
-        gRenderer = new ParticleRenderer(*gSim, 1280, 800);
-        gRenderer->setCamera(0.0f, 0.3f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
+        gRenderer = new ParticleRenderer02(*gSim, 1280, 800);
+        gRenderer->setCamera(0.0f, 0.4f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);*/
+
+        gObstacle = new Obstacle("icosphere.obj");
+        gObstacle->scale(1.5f);
+
+
+        ObstacleGridConfiguration config;
+        config.compactSupport = 0.025f;
+        config.dx = config.compactSupport/3.0f;
+        config.restDistance = 2*config.compactSupport;
+
+        gObstacleGrid = new ObstacleGrid(config);
+        gObstacleGrid->setCanvas(*gObstacle);
+        gObstacleGrid->saveDistanceMap("SDFtest.ppm");
+
+        gObstacleRenderer = new ObstacleRenderer();
+        gObstacleRenderer->setCamera(1.0f, 2.0f, 4.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	    gObstacleRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
+        gObstacleRenderer->setObstacle(*gObstacle);
+
 
         //gSim->saveInfoTable("tralala.txt");
         //gSim->saveParticleInfo("particle_info.txt");
@@ -67,12 +97,41 @@ void init()
 
 void display() 
 {
-    gRenderer->render();
-    gSim->advance();
- //   system("pause");
+    gObstacleRenderer->draw();
+    /*
+    if (!gPause) {
+        gSim->advance();
+    }*/
+    //  gRenderer->render();
+    //   system("pause");
 }
 
 void keyboard(unsigned char key, int x, int y)
 {
-
+    switch (key) {
+    case 'p':
+        if (gPause) {
+            gPause = false;
+        } else {
+            gPause = true;
+        }
+        break;
+    case 'r':
+        gSim->setNPartThresh(1.0f);
+        break;
+    case 'f':
+        gSim->setNPartThresh(-1.0f);
+        break;
+    case 't':
+        gSim->increaseCmDistanceThresh();
+        break;
+    case 'g':
+        gSim->decreaseCmDistanceThresh();
+        break;
+    case 27:
+		exit(0);
+		break;
+	default:
+		return;
+	}
 }

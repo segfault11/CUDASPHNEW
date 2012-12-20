@@ -18,6 +18,11 @@
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 /*!
 ** \struct CGTKObjFile
 */
@@ -31,5 +36,9 @@ typedef struct {
 CGTKObjFile* cgtkObjFileAlloc(const char* filename);
 void cgtkObjFileFree(CGTKObjFile** objFile);
 void cgtkObjFileDump(CGTKObjFile* objFile);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* end of include guard: GEOMETRY_H */

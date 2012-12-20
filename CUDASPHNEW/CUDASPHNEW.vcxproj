@@ -17,7 +17,13 @@
     <ClCompile Include="cgtk\src\math.c" />
     <ClCompile Include="cgtk\src\opengl.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="particle_renderer.cpp" />
+    <ClCompile Include="obstacle.cpp" />
+    <ClCompile Include="obstacle_renderer.cpp" />
+    <ClCompile Include="particle_renderer01.cpp" />
+    <ClCompile Include="particle_renderer02.cpp" />
+    <ClCompile Include="portable_pixmap.cpp" />
+    <ClCompile Include="rectangle3f.cpp" />
+    <ClCompile Include="vector3f.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cgtk\include\clock.h" />
@@ -25,17 +31,33 @@
     <ClInclude Include="cgtk\include\geometry.h" />
     <ClInclude Include="cgtk\include\math.h" />
     <ClInclude Include="cgtk\include\opengl.h" />
-    <ClInclude Include="particle_renderer.h" />
+    <ClInclude Include="obstacle.h" />
+    <ClInclude Include="obstacle_renderer.h" />
+    <ClInclude Include="particle_renderer01.h" />
+    <ClInclude Include="particle_renderer02.h" />
     <ClInclude Include="particle_simulation.h" />
+    <ClInclude Include="obstacle_grid.h" />
+    <ClInclude Include="portable_pixmap.h" />
+    <ClInclude Include="rectangle3f.h" />
     <ClInclude Include="util.h" />
+    <ClInclude Include="vector3f.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="particle_renderer_f.glsl" />
-    <None Include="particle_renderer_g.glsl" />
-    <None Include="particle_renderer_v.glsl" />
+    <None Include="obstacle_renderer_bb_f.glsl" />
+    <None Include="obstacle_renderer_bb_g.glsl" />
+    <None Include="obstacle_renderer_bb_v.glsl" />
+    <None Include="obstacle_renderer_f.glsl" />
+    <None Include="obstacle_renderer_v.glsl" />
+    <None Include="particle_renderer01_f.glsl" />
+    <None Include="particle_renderer01_g.glsl" />
+    <None Include="particle_renderer01_v.glsl" />
+    <None Include="particle_renderer02_f.glsl" />
+    <None Include="particle_renderer02_g.glsl" />
+    <None Include="particle_renderer02_v.glsl" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="particle_simulation.cu" />
+    <CudaCompile Include="obstacle_grid.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F4F9CC11-8987-4365-81CB-3281277F7D6C}</ProjectGuid>
@@ -91,13 +113,15 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>glew32.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Wm5Core.lib;Wm5Mathematics.lib;glew32.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
