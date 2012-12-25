@@ -9,7 +9,7 @@ PortablePixmap::PortablePixmap(unsigned int width, unsigned int height,
     _maxColor(maxColor)
 {
     _data = new unsigned int[3*_width*_height];
-    memset(_data, 0, sizeof(unsigned int)*3*_width*_height);
+    memset(_data, _maxColor, sizeof(unsigned int)*3*_width*_height);
 }
 
 

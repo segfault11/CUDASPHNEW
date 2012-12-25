@@ -90,7 +90,7 @@ void ObstacleRenderer::setPerspective(float fovy, float aspect, float n,
 		glUniformMatrix4fv(loc2, 1, 0, _projMat);
 }
 
-void ObstacleRenderer::setObstacle(const Obstacle& obs)
+void ObstacleRenderer::setObstacle(const TriangleMesh& obs)
 {
     _obstacle = &obs;
 

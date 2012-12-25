@@ -15,6 +15,8 @@ public:
     const Vector3f& getV1() const;
     const Vector3f& getV2() const;
 
+    bool contains(const Vector3f& point) const;
+
     void scale(const Vector3f& v);
     void scale(float s);
     float volume() const;

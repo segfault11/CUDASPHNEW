@@ -49,3 +49,14 @@ void Rectangle3f::dump() const
     cout << "v2" << endl;
     _v2.dump();
 }
+
+bool Rectangle3f::contains(const Vector3f& point) const
+{
+    if (point.getX() > _v2.getX() || point.getX() < _v1.getX() ||
+        point.getY() > _v2.getY() || point.getY() < _v1.getY() ||
+        point.getZ() > _v2.getZ() || point.getZ() < _v1.getZ()) {
+        return false;
+    }
+
+    return true;
+}

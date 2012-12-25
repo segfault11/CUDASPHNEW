@@ -4,7 +4,7 @@
 #include <Windows.h>
 #include <gl\glew.h>
 #include <gl\glut.h>
-#include "obstacle.h"
+#include "triangle_mesh.h"
 
 class ObstacleRenderer
 {
@@ -16,7 +16,7 @@ public:
 	    float cy, float cz, float ux, float uy, float uz);
     void setPerspective(float fovy, float aspect, float n, 
 	    float f);
-    void setObstacle(const Obstacle& obs);
+    void setObstacle(const TriangleMesh& obs);
     void draw() const;
 
 private:
@@ -29,7 +29,7 @@ private:
     GLuint _indexVbo;
     GLfloat _projMat[16];			/* OpenGL style projection matrix */
 	GLfloat _viewMat[16];			/* OpenGL style view matrix */
-    const Obstacle* _obstacle;
+    const TriangleMesh* _obstacle;
 };
 
 #endif /* end of include guard: obstacle_renderer.h */ 

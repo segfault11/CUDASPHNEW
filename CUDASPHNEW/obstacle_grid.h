@@ -11,7 +11,8 @@
 
 #include <vector>
 #include <set>
-#include "obstacle.h"
+#include <list>
+#include "triangle_mesh.h"
 
 typedef struct
 {
@@ -54,7 +55,7 @@ public:
     ~ObstacleGrid();
 
 
-    void setCanvas(const Obstacle& obs);
+    void setCanvas(const TriangleMesh& obs);
 
 
 
@@ -86,11 +87,11 @@ private:
     unsigned int* _nodeIndexMap; /* indices refering to node data for each 
                                   * grid point */
 
-    const Obstacle* _canvas;
-    std::vector<Obstacle*> _obstacles;
+    const TriangleMesh* _canvas;
+    std::vector<TriangleMesh*> _obstacles;
     std::set<Normal> _normal;
     std::vector<NodeTuple*> _nodeTable;
-    std::vector<GridCoordinate*> _coordinates;
+    std::list<GridCoordinate*> _coordinates;
 
 };
 

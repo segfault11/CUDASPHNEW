@@ -3,7 +3,9 @@
 #include "util.h"
 #include <limits>
 #include "portable_pixmap.h"
+#include "point_in_mesh_test.h"
 #include <cmath>
+#include "cgtk\include\clock.h"
 
 inline float minf(float f0, float f1);
 inline float maxf(float f0, float f1);
@@ -21,6 +23,7 @@ ObstacleGrid::ObstacleGrid(const ObstacleGridConfiguration& config):
     // first node tuple in the node table refers to node with infinity 
     // distance to the obstacles/canvas
     #undef max;
+
     float inf = std::numeric_limits<float>::max();
 
     NodeTuple* n = new NodeTuple();
@@ -36,7 +39,7 @@ ObstacleGrid::~ObstacleGrid()
 }
 
 
-void ObstacleGrid::setCanvas(const Obstacle& obs)
+void ObstacleGrid::setCanvas(const TriangleMesh& obs)
 {
     // TODO:
     // reset to initial state ...
@@ -86,12 +89,53 @@ void ObstacleGrid::setCanvas(const Obstacle& obs)
 void ObstacleGrid::sampleDistanceCanvas()
 {
     // for each triangle of the canvas ...
-    for (unsigned int i = 0; i < _canvas->_nFaces; i++) {
+    for (unsigned int i = 0; i < _canvas->_nFaces; i++) 
+    {
         // update regions in the grid which lie within the bounding box of the triangle
         updateGridDistance(&_canvas->_vertexList[3*_canvas->_faceList[3*i + 0]],
             &_canvas->_vertexList[3*_canvas->_faceList[3*i + 1]],
             &_canvas->_vertexList[3*_canvas->_faceList[3*i + 2]]);
         std::cout << i << " of " << _canvas->_nFaces << " faces done" << std::endl;
+    }
+
+
+    PointInMeshTest test(*_canvas, 10);
+    test.save("pittest.ppm");
+
+    // compute sign of each distance
+    float gridWC[3];  // world coord. for each grid index
+    int idx; // index for node index map
+    NodeTuple* t;
+    
+
+    // for all coordinates within a narrow band of the surface
+    // compute the sign of the distance
+    std::list<GridCoordinate*>::iterator it = _coordinates.begin();
+    std::list<GridCoordinate*>::iterator end = _coordinates.end();
+    unsigned int cntr = 0;
+
+    for ( ; it != end; it++) 
+    {
+        if (cntr % 100000 == 0)
+        {
+            std::cout << cntr << "/" << _coordinates.size() << std::endl;    
+        }
+
+        cntr++;
+
+        gridWC[0] = _boundingBox.getV1().getX() + _dx*(*it)->i; 
+        gridWC[1] = _boundingBox.getV1().getY() + _dx*(*it)->j; 
+        gridWC[2] = _boundingBox.getV1().getZ() + _dx*(*it)->k; 
+        idx = (*it)->i + _nSamples[0]*((*it)->j + (*it)->k*_nSamples[1]);
+        
+
+        //cgtkClockStart();
+        if (test.isContained(Vector3f(gridWC[0], gridWC[1], gridWC[2])))
+        {
+            t = _nodeTable[_nodeIndexMap[idx]];
+            t->distance = -t->distance;
+        }
+        //cgtkClockDumpElapsed();
     }
 
 
@@ -155,6 +199,7 @@ void ObstacleGrid::updateGridDistance(float v1[3], float v2[3], float v3[3])
     int idx; // index for node index map
     NodeTuple* t;
 
+    // compute distance
     for (int k = idxMin[2]; k <= idxMax[2]; k++) {
         for (int j = idxMin[1]; j <= idxMax[1]; j++) {
             for (int i = idxMin[0]; i <= idxMax[0]; i++) {
@@ -184,7 +229,7 @@ void ObstacleGrid::updateGridDistance(float v1[3], float v2[3], float v3[3])
                         _nodeIndexMap[idx] = _nodeTable.size() - 1;
 
                         // save not empty coordinates
-                        _coordinates.push_back(new GridCoordinate(i,j,k); 
+                        _coordinates.push_back(new GridCoordinate(i,j,k)); 
 
                     }  else {
 
@@ -216,8 +261,15 @@ void ObstacleGrid::saveDistanceMap(const std::string& filename) const
             
             d = _nodeTable[_nodeIndexMap[idx]]->distance;
 
-            if (d <= maxDist) {
-                p.setJET(i, j, d/maxDist);
+            if (std::abs(d) <= maxDist) {
+                if (d <= 0.0) {
+                    p.set(i, j, 255, 0, 0);
+                } else {
+                    p.set(i, j, 0, 255, 0);
+                }
+                
+                
+                //p.setJET(i, j, d/maxDist);
             }
 
         }    

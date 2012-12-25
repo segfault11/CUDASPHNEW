@@ -22,9 +22,6 @@
     <Filter Include="ParticleSimulation\BoundaryHandling">
       <UniqueIdentifier>{776620a6-622f-4c37-b53d-065ab7078385}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ParticleSimulation\BoundaryHandling\Obstacle">
-      <UniqueIdentifier>{7433d34f-e348-436f-971f-6d363d826f19}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ParticleSimulation\BoundaryHandling\ObstacleGrid">
       <UniqueIdentifier>{477f1d53-6cb5-4efc-964c-518b0527745d}</UniqueIdentifier>
     </Filter>
@@ -39,6 +36,9 @@
     </Filter>
     <Filter Include="Utilities\ppm">
       <UniqueIdentifier>{d09a769d-7ce9-46dd-82f2-a290f20f4679}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleSimulation\BoundaryMap">
+      <UniqueIdentifier>{bd5cb814-4d1b-4606-80e2-9f1234f6148d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -75,6 +75,9 @@
     <None Include="obstacle_renderer_bb_f.glsl">
       <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
     </None>
+    <None Include="sparse_voxel_map.inl">
+      <Filter>Utilities\math</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cgtk\src\clock.c">
@@ -99,9 +102,6 @@
     <ClCompile Include="particle_renderer02.cpp">
       <Filter>ParticleRenderer\ParticleRenderer02</Filter>
     </ClCompile>
-    <ClCompile Include="obstacle.cpp">
-      <Filter>ParticleSimulation\BoundaryHandling\Obstacle</Filter>
-    </ClCompile>
     <ClCompile Include="obstacle_renderer.cpp">
       <Filter>ParticleSimulation\BoundaryHandling\ObstacleRenderer</Filter>
     </ClCompile>
@@ -113,6 +113,15 @@
     </ClCompile>
     <ClCompile Include="portable_pixmap.cpp">
       <Filter>Utilities\ppm</Filter>
+    </ClCompile>
+    <ClCompile Include="triangle_mesh.cpp">
+      <Filter>Utilities\math</Filter>
+    </ClCompile>
+    <ClCompile Include="point_in_mesh_test.cpp">
+      <Filter>Utilities\math</Filter>
+    </ClCompile>
+    <ClCompile Include="boundary_map.cpp">
+      <Filter>ParticleSimulation\BoundaryMap</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -140,9 +149,6 @@
     <ClInclude Include="particle_renderer02.h">
       <Filter>ParticleRenderer\ParticleRenderer02</Filter>
     </ClInclude>
-    <ClInclude Include="obstacle.h">
-      <Filter>ParticleSimulation\BoundaryHandling\Obstacle</Filter>
-    </ClInclude>
     <ClInclude Include="obstacle_grid.h">
       <Filter>ParticleSimulation\BoundaryHandling\ObstacleGrid</Filter>
     </ClInclude>
@@ -160,6 +166,18 @@
     </ClInclude>
     <ClInclude Include="portable_pixmap.h">
       <Filter>Utilities\ppm</Filter>
+    </ClInclude>
+    <ClInclude Include="triangle_mesh.h">
+      <Filter>Utilities\math</Filter>
+    </ClInclude>
+    <ClInclude Include="point_in_mesh_test.h">
+      <Filter>Utilities\math</Filter>
+    </ClInclude>
+    <ClInclude Include="sparse_voxel_map.h">
+      <Filter>Utilities\math</Filter>
+    </ClInclude>
+    <ClInclude Include="boundary_map.h">
+      <Filter>ParticleSimulation\BoundaryMap</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

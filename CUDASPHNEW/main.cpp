@@ -8,13 +8,15 @@
 #include "particle_simulation.h"
 #include "particle_renderer01.h"
 #include "particle_renderer02.h"
-#include "obstacle.h"
+#include "triangle_mesh.h"
 #include "obstacle_renderer.h"
 #include "obstacle_grid.h"
 #include <stdexcept>
 #include <iostream>
 #include <exception>
 #include "portable_pixmap.h"
+#include "sparse_voxel_map.h"
+#include "boundary_map.h"
 
 void display();
 void keyboard(unsigned char key, int x, int y);
@@ -23,13 +25,16 @@ void init();
 
 ParticleSimulation* gSim;
 ParticleRenderer02* gRenderer;
-Obstacle* gObstacle;
+TriangleMesh* gObstacle;
 ObstacleRenderer* gObstacleRenderer;
 ObstacleGrid* gObstacleGrid;
+BoundaryMap* gBoundaryMap;
 bool gPause;
 
 int main(int argc, char* argv[]) 
 {
+    SparseVoxelMap<float> map(1, 2, 3);
+        
     cudaGLSetGLDevice(0);    
     glutInit(&argc, argv);
     glutInitContextVersion(3, 3);
@@ -63,18 +68,27 @@ void init()
         gRenderer->setCamera(0.0f, 0.4f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);*/
 
-        gObstacle = new Obstacle("icosphere.obj");
+        gObstacle = new TriangleMesh("icosphere.obj");
         gObstacle->scale(1.5f);
 
 
-        ObstacleGridConfiguration config;
+        /*ObstacleGridConfiguration config;
         config.compactSupport = 0.025f;
         config.dx = config.compactSupport/3.0f;
         config.restDistance = 2*config.compactSupport;
 
         gObstacleGrid = new ObstacleGrid(config);
         gObstacleGrid->setCanvas(*gObstacle);
-        gObstacleGrid->saveDistanceMap("SDFtest.ppm");
+        gObstacleGrid->saveDistanceMap("SDFtest.ppm");*/
+
+        BoundaryMapConfiguration config;
+        config.compactSupport = 0.025f;
+        config.dx = config.compactSupport/3.0f;
+        config.restDistance = 6*config.compactSupport;
+
+        gBoundaryMap = new BoundaryMap(config);
+        gBoundaryMap->addCanvas(*gObstacle);
+        gBoundaryMap->save("tollertestyo.ppm");
 
         gObstacleRenderer = new ObstacleRenderer();
         gObstacleRenderer->setCamera(1.0f, 2.0f, 4.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);

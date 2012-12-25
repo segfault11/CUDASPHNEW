@@ -385,7 +385,8 @@ C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstring
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfunctional
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\set
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xtree
-c:\users\arno\documents\projects\cudasphnew\cudasphnew\obstacle.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\list
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\triangle_mesh.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\istream
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ostream
@@ -424,7 +425,6 @@ C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iostream
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\fstream
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\algorithm
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\deque
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\list
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\map
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\queue
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stack
@@ -612,3 +612,19 @@ c:\program files\nvidia gpu computing toolkit\cuda\v5.0\include\host_defines.h
 C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\include\GL/gl.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sstream
 c:\users\arno\documents\projects\cudasphnew\cudasphnew\portable_pixmap.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\point_in_mesh_test.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\triangle_mesh.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\rectangle3f.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\vector3f.h
+C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include\Wm5IntrRay3Triangle3.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5MathematicsLIB.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Intersector.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5MathematicsLIB.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Vector2.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Vector3.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Ray3.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5MathematicsLIB.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Vector3.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Ray3.inl
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\libs\wildmagic5\include\Wm5Triangle3.h
+c:\users\arno\documents\projects\cudasphnew\cudasphnew\cgtk\include\clock.h
