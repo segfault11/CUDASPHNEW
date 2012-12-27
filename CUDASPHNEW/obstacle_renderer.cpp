@@ -107,13 +107,9 @@ void ObstacleRenderer::setObstacle(const TriangleMesh& obs)
     glBufferData(GL_ARRAY_BUFFER, sizeof(float)*_obstacle->_nVertices*3, 
         _obstacle->_vertexList, GL_STATIC_DRAW);
 
-
-
-
-
     Rectangle3f bb = obs.getBoundingBox();
 
-    bb.dump();
+    //bb.dump();
 
     float or[3]; // origin of the bounding box
     or[0] = bb.getV1().getX();
@@ -123,7 +119,7 @@ void ObstacleRenderer::setObstacle(const TriangleMesh& obs)
     float dy = bb.getV2().getY() - or[1]; 
     float dz = bb.getV2().getZ() - or[2]; 
 
-    Vector3f(dx,dy,dz).dump();
+    //Vector3f(dx,dy,dz).dump();
 
 
     glBindVertexArray(_vao2);

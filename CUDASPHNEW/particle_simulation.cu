@@ -593,13 +593,15 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
     }
 }
 
-
-/** HOST CODE ****************************************************************/
-
+//-----------------------------------------------------------------------------
+//  HOST CODE
+//-----------------------------------------------------------------------------
 
 #define EMPTY_CELL 0xFFFFFFFF
 
-/** forward declaration of aux. functions ************************************/
+//-----------------------------------------------------------------------------
+//  forward declaration of aux. functions
+//-----------------------------------------------------------------------------
 void create_particle_box(float sx, float sy, float sz, float d, 
     unsigned int nParticles, float** particleVD, float** particleSD,
     unsigned int* nParticlesCreated);
@@ -607,8 +609,9 @@ void set_simulation_domain(float xs, float ys, float zs, float xe,
     float ye, float ze, float gridSpacing, SimulationParameters* parameters);
 
 
-/** Definition of ParticleSimulation class ***********************************/
-
+//-----------------------------------------------------------------------------
+//  Definition of ParticleSimulation class 
+//-----------------------------------------------------------------------------
 /* Set everything to NULL/0
 */
 ParticleSimulation::ParticleSimulation(): _particleVertexData(NULL), 
@@ -620,12 +623,12 @@ ParticleSimulation::ParticleSimulation(): _particleVertexData(NULL),
 {
     memset(&_parameters, 0, sizeof(SimulationParameters));
 }
-
+//-----------------------------------------------------------------------------
 ParticleSimulation::~ParticleSimulation() 
 {
     this->freeAll();
 }
-
+//-----------------------------------------------------------------------------
 ParticleSimulation* ParticleSimulation::example01() 
 {
     // create a particle simulation 
@@ -633,7 +636,7 @@ ParticleSimulation* ParticleSimulation::example01()
 
 
     // create box (cube) of particles
-    create_particle_box(-0.45f, -0.45f, -0.25f, 0.5f, 120000, 
+    create_particle_box(-0.25f, -0.25f, -0.25f, 0.5f, 120000, 
         &sim->_particleVertexData, &sim->_particleSimulationData,
         &sim->_parameters.nParticles);
 
@@ -657,6 +660,9 @@ ParticleSimulation* ParticleSimulation::example01()
     float h = powf((3.0f*0.5f*0.5f*0.5f*sim->_parameters.kernelParticles)/
         (4.0f*M_PI*sim->_parameters.nParticles), 1.0f/3.0f);
  
+
+    std::cout << "h = " << h << std::endl; 
+
     sim->_parameters.compactSupport =  h;
     sim->_parameters.poly6 =  315.0f/(64.0f*M_PI*h*h*h*h*h*h*h*h*h);
     sim->_parameters.gradPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
@@ -689,7 +695,7 @@ ParticleSimulation* ParticleSimulation::example01()
     //printf("h %")
     return sim;
 }
-
+//-----------------------------------------------------------------------------
 int* ParticleSimulation::createIsParticleSurfaceList(
     const ParticleSimulation* sim)
 {
@@ -710,7 +716,7 @@ int* ParticleSimulation::createIsParticleSurfaceList(
 
     return isSurfaceParticleList;
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::freeIsParticleSurfaceList(int** isSurfaceParticleList)
 {
     if (*isSurfaceParticleList == NULL) {
@@ -720,7 +726,7 @@ void ParticleSimulation::freeIsParticleSurfaceList(int** isSurfaceParticleList)
     delete[] *isSurfaceParticleList;
     *isSurfaceParticleList = NULL;
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::freeAll() 
 {
     // free host memory
@@ -745,7 +751,7 @@ void ParticleSimulation::freeAll()
         _particleVbo = 0;
     }
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::init() 
 {
     // free device memory, if previously allocated 
@@ -855,7 +861,7 @@ void ParticleSimulation::bind() const
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(gSimParamsDev, (void*)&_parameters, 
         sizeof(SimulationParameters)) );  
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::advance()
 {
     cgtkClockStart();
@@ -870,51 +876,51 @@ void ParticleSimulation::advance()
     this->unmap();
     //cgtkClockDumpElapsed();
 }
-
+//-----------------------------------------------------------------------------
 float ParticleSimulation::getParticleRadius() const
 {
     return powf((3.0*_parameters.fluidVolume)/
         (4.0*M_PI*_parameters.nParticles), 1.0f/3.0f);
 }
-
+//-----------------------------------------------------------------------------
 unsigned int ParticleSimulation::getNumParticles() const
 {
     return _parameters.nParticles;
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::setNPartThresh(float dVal)
 {
     _parameters.nPartTresh += dVal;
     printf("# particle thresh %f\n", _parameters.nPartTresh);
     this->bind();
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::decreaseCmDistanceThresh() {
     _rightI = _parameters.cmDistanceThresh;
     _parameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
     printf("cmDistance = %f\n", _parameters.cmDistanceThresh);
         this->bind();
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::increaseCmDistanceThresh() {
     _leftI = _parameters.cmDistanceThresh;
     _parameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
     printf("cmDistance = %f\n", _parameters.cmDistanceThresh);
         this->bind();
 }
-
+//-----------------------------------------------------------------------------
 GLuint ParticleSimulation::getGLVertexBufferObject() const
 {
     return _particleVbo;
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::computeParticleHash() 
 {
     compute_particle_hash <<< _blocks, _threadsPerBlock >>> 
         (_particleVertexDataDevPtr, _particleIdListDevPtr, 
         _particleHashListDevPtr);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::sortParticleIdsByHash()
 {
    thrust::sort_by_key(thrust::device_ptr<int>(_particleHashListDevPtr),
@@ -922,7 +928,7 @@ void ParticleSimulation::sortParticleIdsByHash()
         _parameters.nParticles),
         thrust::device_ptr<int>(_particleIdListDevPtr));
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::computeCellStartEndList() 
 {
     int* dim = _parameters.gridDim; 
@@ -936,7 +942,7 @@ void ParticleSimulation::computeCellStartEndList()
         (_particleHashListDevPtr, _cellStartListDevPtr, 
         _cellEndListDevPtr);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::computeDensityPressure() 
 {
     compute_particle_density_pressure <<< _blocks, _threadsPerBlock >>> 
@@ -944,7 +950,7 @@ void ParticleSimulation::computeDensityPressure()
         _particleSimulationDataDevPtr, _particleIdListDevPtr, 
         _cellStartListDevPtr, _cellEndListDevPtr);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::computeAcceleration()
 {
     compute_particle_acceleration_ifsurf <<< _blocks, _threadsPerBlock >>> 
@@ -952,19 +958,19 @@ void ParticleSimulation::computeAcceleration()
         _particleIdListDevPtr, _cellStartListDevPtr, _cellEndListDevPtr,
         _isSurfaceParticleDevPtr);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::integrate()
 {
     integrate_euler <<< _blocks, _threadsPerBlock >>>
         (_particleVertexDataDevPtr, _particleSimulationDataDevPtr);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::handleCollisions()
 {
     collision_handling <<< _blocks, _threadsPerBlock >>>
         (_particleVertexDataDevPtr, _particleSimulationDataDevPtr);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::map() 
 {
     cudaGraphicsMapResources(1, &_graphicsResource);
@@ -981,7 +987,7 @@ void ParticleSimulation::unmap()
     cudaGraphicsUnmapResources(1, &_graphicsResource);
     //cudaGLUnmapBufferObject(_particleVbo);
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::saveInfoTable(const std::string& filename) 
 {
     using namespace std;
@@ -1048,7 +1054,7 @@ void ParticleSimulation::saveInfoTable(const std::string& filename)
 
     //this->unmap();
 }
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::saveParticleInfo(const std::string& filename)
 {
     using namespace std;
@@ -1117,8 +1123,9 @@ void ParticleSimulation::saveParticleInfo(const std::string& filename)
     this->unmap();
 }
 
-/** definition of aux. functions *********************************************/
-
+//-----------------------------------------------------------------------------
+//  definition of aux. functions
+//-----------------------------------------------------------------------------
 /* Creates a set of particles, that are aligned in a cube, given the starting
 ** point of the box [sx, sy, sz] the length of the cube in each direction [d]
 ** and the approximate amount of total particles [nParticles].
@@ -1167,7 +1174,7 @@ void create_particle_box(float sx, float sy, float sz, float d,
     memset((*particleSD), 0, 
         sizeof(float)*SD_NUM_ELEMENTS*(*nParticlesCreated));
 }
-
+//-----------------------------------------------------------------------------
 /* Sets the simulation domain in the [parameters], based on a starting point
 ** [xs, ys, zs] an ending point [xe, ye, ze] and the distance between two
 ** grid points [gridSpacing].

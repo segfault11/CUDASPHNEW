@@ -1,9 +1,9 @@
-﻿Build started 12/27/2012 2:30:47 PM.
+﻿Build started 12/27/2012 4:03:26 PM.
      1>Project "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\CUDASPHNEW.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\CUDASPHNEW.unsuccessfulbuild" because "AlwaysCreate" was specified.
        AddCudaCompileDeps:
-       Skipping target "AddCudaCompileDeps" because all output files are up-to-date with respect to the input files.
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\cl.exe /E /nologo /showIncludes /TP /D__CUDACC__ /D_MBCS /IC:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /I. /FIcuda_runtime.h /c C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu 
        AddCudaCompileDeps:
        Skipping target "AddCudaCompileDeps" because all output files are up-to-date with respect to the input files.
        AddCudaCompilePropsDeps:
@@ -11,7 +11,35 @@
        AddCudaCompilePropsDeps:
        Skipping target "AddCudaCompilePropsDeps" because all output files are up-to-date with respect to the input files.
        CudaBuild:
-       Skipping target "CudaBuild" because all output files are up-to-date with respect to the input files.
+         Compiling CUDA source file particle_simulation.cu...
+         cmd.exe /C "C:\Users\Arno\AppData\Local\Temp\c389e6dd1d7a4acb9fcb88a82b84b808.cmd"
+         "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"     --keep-dir "Release" -maxrregcount=0  --machine 32 --compile     -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "Release\particle_simulation.cu.obj" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu"
+         
+         C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"     --keep-dir "Release" -maxrregcount=0  --machine 32 --compile     -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "Release\particle_simulation.cu.obj" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu" 
+         particle_simulation.cu
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(268): warning : variable "isSurface" was declared but never referenced
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(275): warning : variable "dCenterMassNormSq" was declared but never referenced
+         
+         tmpxft_00001488_00000000-2_particle_simulation.cudafe1.gpu
+         tmpxft_00001488_00000000-7_particle_simulation.cudafe2.gpu
+         particle_simulation.cu
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(268): warning : variable "isSurface" was declared but never referenced
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(275): warning : variable "dCenterMassNormSq" was declared but never referenced
+         
+         tmpxft_00001488_00000000-2_particle_simulation.cudafe1.cpp
+         tmpxft_00001488_00000000-12_particle_simulation.ii
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(660): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(667): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(668): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(669): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(670): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(671): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(672): warning C4305: '=' : truncation from 'double' to 'float'
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(882): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1023): warning C4018: '<' : signed/unsigned mismatch
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1142): warning C4244: 'initializing' : conversion from 'double' to 'unsigned int', possible loss of data
        CudaBuild:
        Skipping target "CudaBuild" because all output files are up-to-date with respect to the input files.
        ClCompile:
@@ -64,4 +92,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:02.17
+Time Elapsed 00:00:21.38

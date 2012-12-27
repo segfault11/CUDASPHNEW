@@ -21,6 +21,7 @@ public:
     void scale(const Vector3f& v);
     void scale(float s);
     void translate(const Vector3f& v);
+    void fit(const Rectangle3f& rect);
 
     const Rectangle3f& getBoundingBox() const;
     bool isClosed() const;
