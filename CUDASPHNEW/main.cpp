@@ -33,8 +33,6 @@ bool gPause;
 
 int main(int argc, char* argv[]) 
 {
-    SparseVoxelMap<float> map(1, 2, 3);
-        
     cudaGLSetGLDevice(0);    
     glutInit(&argc, argv);
     glutInitContextVersion(3, 3);
@@ -83,12 +81,37 @@ void init()
 
         BoundaryMapConfiguration config;
         config.compactSupport = 0.025f;
-        config.dx = config.compactSupport/3.0f;
-        config.restDistance = 6*config.compactSupport;
+        config.dx = config.compactSupport/2.0f;
+        config.restDistance = 3*config.compactSupport;
 
         gBoundaryMap = new BoundaryMap(config);
+
+        
+        gBoundaryMap->load("testttttt.txt");
+        std::cout << "finished loading" << std::endl;
+        gBoundaryMap->saveSlice("karlkarlson.ppm");
+        gBoundaryMap->dump();
+        system("pause");
+
         gBoundaryMap->addCanvas(*gObstacle);
-        gBoundaryMap->save("tollertestyo.ppm");
+        
+        try
+        {
+            //gBoundaryMap->generate();
+        
+
+            std::cout << "saving boundary map" << std::endl;
+            gBoundaryMap->save("testttttt.txt");
+            std::cout << "finished mitm rotz" << std::endl;
+            system("pause");
+        }
+        catch (std::exception& e)
+        {
+            std::cout << e.what() << std::endl;
+            system("pause");        
+        }    
+            
+        //gBoundaryMap->saveSlice("tollertestyo.ppm");
 
         gObstacleRenderer = new ObstacleRenderer();
         gObstacleRenderer->setCamera(1.0f, 2.0f, 4.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
@@ -104,7 +127,9 @@ void init()
         //delete gRenderer;
         //delete gSim;
 
-    } catch (std::runtime_error e) {
+    } 
+    catch (std::runtime_error e)
+    {
         std::cout << e.what();
     }
 }

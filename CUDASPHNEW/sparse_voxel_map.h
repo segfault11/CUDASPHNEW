@@ -55,6 +55,7 @@ public:
     bool contains(const Coordinate& c) const;
     bool get(T& val, const Coordinate& c) const;
 
+    unsigned int getNumCoordinates() const;
 
     void init(unsigned int iMax, unsigned int jMax, unsigned int kMax);
     void clear();
@@ -63,6 +64,8 @@ public:
     std::list<Coordinate>::const_iterator& begin() const;
     std::list<Coordinate>::const_iterator& end() const;
 
+    void dumpCoordinates() const;
+
 private:
     unsigned int _iMax;
     unsigned int _jMax;
@@ -70,6 +73,9 @@ private:
     std::list<Coordinate> _coordinates;
     T** _data;
 };
+
+template<class T>
+void dumpCoordinates(const SparseVoxelMap<T>& map);
 
 #include "sparse_voxel_map.inl"
 

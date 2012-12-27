@@ -1,6 +1,7 @@
 #include "portable_pixmap.h"
 #include <fstream>
 #include <cmath>
+#include <fstream>
 
 inline float clamp(float x, float min, float max);
 

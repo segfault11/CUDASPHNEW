@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <limits>
 
+#include <iostream>
+
 
 template<class T>
 SparseVoxelMap<T>::SparseVoxelMap(): _iMax(0), _jMax(0), _kMax(0), 
@@ -72,6 +74,12 @@ bool SparseVoxelMap<T>::get(T& val, const Coordinate& c) const
 }
 
 template<class T>
+unsigned int SparseVoxelMap<T>::getNumCoordinates() const
+{
+    return _coordinates.size();
+}
+
+template<class T>
 std::list<Coordinate>::const_iterator& SparseVoxelMap<T>::begin() const
 {
     return _coordinates.begin();
@@ -117,4 +125,32 @@ void SparseVoxelMap<T>::init(unsigned int iMax, unsigned int jMax, unsigned int 
     _kMax = kMax;
     _data = new T*[_iMax*_jMax*_kMax];
     memset(_data, NULL, _iMax*_jMax*_kMax*sizeof(T*));
+}
+
+template<class T>
+void SparseVoxelMap<T>::dumpCoordinates() const
+{
+    auto it = _coordinates.begin();
+    auto end = _coordinates.end();
+
+    for (; it != end; it++)
+    {
+        std::cout << (*it).i << " " << (*it).j << " " << (*it).k << std::endl;
+    }
+
+
+}
+
+
+template<class T>
+void dumpCoordinates(const SparseVoxelMap<T>& map)
+{
+    auto it = map.begin();
+    auto end = map.end();
+
+    for (; it != end; it++)
+    {
+        std::cout << (*it).i << " " << (*it).j << " " << (*it).k << std::endl;
+    }
+
 }
