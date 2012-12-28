@@ -24,7 +24,7 @@ void init();
 
 
 ParticleSimulation* gSim;
-ParticleRenderer02* gRenderer;
+ParticleRenderer* gRenderer;
 TriangleMesh* gObstacle;
 ObstacleRenderer* gObstacleRenderer;
 ObstacleGrid* gObstacleGrid;
@@ -55,70 +55,41 @@ int main(int argc, char* argv[])
 
 void init() 
 {
-    try {
+    //try {
         gPause = false;
-
+        
         gSim = ParticleSimulation::example01();
-        /*gSim->init();
+        gSim->init();
         gSim->bind();
-
-        gRenderer = new ParticleRenderer02(*gSim, 1280, 800);
+        
+        gRenderer = new ParticleRenderer(*gSim, 1280, 800);
         gRenderer->setCamera(0.0f, 0.4f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);*/
-
+	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
+          /*
         gObstacle = new TriangleMesh("icosphere.obj");
-        gObstacle->fit(Rectangle3f(Vector3f(-0.5f, -0.5f, -0.5), 
-            Vector3f(0.5f, 0.5f, 0.5f)));
-        //gObstacle->scale(1.3);
+        gObstacle->fit(Rectangle3f(Vector3f(-0.75f, -0.75f, -0.75f), 
+            Vector3f(0.75f, 0.75f, 0.75f)));
 
-     //   /*ObstacleGridConfiguration config;
-     //   config.compactSupport = 0.025f;
-     //   config.dx = config.compactSupport/3.0f;
-     //   config.restDistance = 2*config.compactSupport;
+        BoundaryMapConfiguration config;
+        config.compactSupport = 0.017f;
+        config.dx = config.compactSupport/3.0f;
+        config.restDistance = config.compactSupport*2.0f;
 
-     //   gObstacleGrid = new ObstacleGrid(config);
-     //   gObstacleGrid->setCanvas(*gObstacle);
-     //   gObstacleGrid->saveDistanceMap("SDFtest.ppm");*/
+        gBoundaryMap = new BoundaryMap(config);
 
-     //   BoundaryMapConfiguration config;
-     //   config.compactSupport = 0.025f;
-     //   config.dx = config.compactSupport/2.0f;
-     //   config.restDistance = 3*config.compactSupport;
 
-     //   gBoundaryMap = new BoundaryMap(config);
+         gBoundaryMap->addCanvas(*gObstacle);
+         std::cout << "saving boundary map" << std::endl;
+         gBoundaryMap->save("icosphere.txt");
+         std::cout << "finished mitm rotz" << std::endl;
+         system("pause");
+  */
 
-     //   
-     //   gBoundaryMap->load("testttttt.txt");
-     //   std::cout << "finished loading" << std::endl;
-     //   gBoundaryMap->saveSlice("karlkarlson.ppm");
-     //   gBoundaryMap->dump();
-     //   system("pause");
-
-     //   gBoundaryMap->addCanvas(*gObstacle);
-     //   
-     //   try
-     //   {
-     //       //gBoundaryMap->generate();
-     //   
-
-     //       std::cout << "saving boundary map" << std::endl;
-     //       gBoundaryMap->save("testttttt.txt");
-     //       std::cout << "finished mitm rotz" << std::endl;
-     //       system("pause");
-     //   }
-     //   catch (std::exception& e)
-     //   {
-     //       std::cout << e.what() << std::endl;
-     //       system("pause");        
-     //   }    
-     //       
-     //   //gBoundaryMap->saveSlice("tollertestyo.ppm");
-
-        gObstacleRenderer = new ObstacleRenderer();
+  /*      gObstacleRenderer = new ObstacleRenderer();
         gObstacleRenderer->setCamera(1.0f, 2.0f, 4.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	    gObstacleRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
         gObstacleRenderer->setObstacle(*gObstacle);
-
+*/
 
      //   //gSim->saveInfoTable("tralala.txt");
      //   //gSim->saveParticleInfo("particle_info.txt");
@@ -128,21 +99,21 @@ void init()
      //   //delete gRenderer;
      //   //delete gSim;
 
-    } 
-    catch (std::runtime_error e)
-    {
-        std::cout << e.what();
-    }
+    //} 
+    //catch (std::runtime_error e)
+    //{
+    //    std::cout << e.what();
+    //}
 }
 
 void display() 
 {
-    gObstacleRenderer->draw();
+    //gObstacleRenderer->draw();
     
-    /*if (!gPause) {
+    if (!gPause) {
         gSim->advance();
     }
-    gRenderer->render();*/
+    gRenderer->render();
     //   system("pause");
 }
 

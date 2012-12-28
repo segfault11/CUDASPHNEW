@@ -4,11 +4,11 @@
 
 #include <iostream>
 
-
+//-----------------------------------------------------------------------------
 template<class T>
 SparseVoxelMap<T>::SparseVoxelMap(): _iMax(0), _jMax(0), _kMax(0), 
-    _data(NULL) {}
-
+    _data(NULL), _coordinates() {}
+//-----------------------------------------------------------------------------
 template<class T>
 SparseVoxelMap<T>::SparseVoxelMap(unsigned int iMax, unsigned int jMax, 
     unsigned int kMax): _iMax(iMax), _jMax(jMax), _kMax(kMax)
@@ -16,7 +16,7 @@ SparseVoxelMap<T>::SparseVoxelMap(unsigned int iMax, unsigned int jMax,
     _data = new T*[_iMax*_jMax*_kMax];
     memset(_data, NULL, _iMax*_jMax*_kMax*sizeof(T*));
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 SparseVoxelMap<T>::~SparseVoxelMap() 
 { 
@@ -34,7 +34,7 @@ SparseVoxelMap<T>::~SparseVoxelMap()
 
     delete[] _data;
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 bool SparseVoxelMap<T>::contains(const Coordinate& c) const
 {
@@ -42,7 +42,7 @@ bool SparseVoxelMap<T>::contains(const Coordinate& c) const
     
     return _data[idx] != NULL;
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 void SparseVoxelMap<T>::add(const Coordinate& c, const T& val) 
 {
@@ -57,7 +57,7 @@ void SparseVoxelMap<T>::add(const Coordinate& c, const T& val)
     _coordinates.push_back(c);
     _data[idx] = new T(val);
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 bool SparseVoxelMap<T>::get(T& val, const Coordinate& c) const 
 {
@@ -72,25 +72,26 @@ bool SparseVoxelMap<T>::get(T& val, const Coordinate& c) const
 
     return true;
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 unsigned int SparseVoxelMap<T>::getNumCoordinates() const
 {
     return _coordinates.size();
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 std::list<Coordinate>::const_iterator& SparseVoxelMap<T>::begin() const
 {
+    std::cout << "KARLKALSON" << std::endl;
     return _coordinates.begin();
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 std::list<Coordinate>::const_iterator& SparseVoxelMap<T>::end() const
 {
     return _coordinates.end();
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 void SparseVoxelMap<T>::clear()
 {
@@ -115,9 +116,10 @@ void SparseVoxelMap<T>::clear()
 
     _data = NULL;
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
-void SparseVoxelMap<T>::init(unsigned int iMax, unsigned int jMax, unsigned int kMax)
+void SparseVoxelMap<T>::init(unsigned int iMax, unsigned int jMax,
+    unsigned int kMax)
 {
     this->clear();
     _iMax = iMax;
@@ -126,7 +128,7 @@ void SparseVoxelMap<T>::init(unsigned int iMax, unsigned int jMax, unsigned int 
     _data = new T*[_iMax*_jMax*_kMax];
     memset(_data, NULL, _iMax*_jMax*_kMax*sizeof(T*));
 }
-
+//-----------------------------------------------------------------------------
 template<class T>
 void SparseVoxelMap<T>::dumpCoordinates() const
 {
@@ -140,8 +142,7 @@ void SparseVoxelMap<T>::dumpCoordinates() const
 
 
 }
-
-
+//-----------------------------------------------------------------------------
 template<class T>
 void dumpCoordinates(const SparseVoxelMap<T>& map)
 {

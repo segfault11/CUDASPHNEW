@@ -1,3 +1,4 @@
+#include "util.h"
 #include "boundary_map.h"
 #include "portable_pixmap.h"
 #include "point_in_mesh_test.h"
@@ -14,16 +15,34 @@ void compute_distance_point_triangle(float& distance, float normal[3],
 //-----------------------------------------------------------------------------
 //  BoundaryMap public methods
 //-----------------------------------------------------------------------------
+BoundaryMap::BoundaryMap()
+{
+ //   memset(this, 0, sizeof(BoundaryMap));
+}
+//-----------------------------------------------------------------------------
 BoundaryMap::BoundaryMap(const BoundaryMapConfiguration& c):
     _dx(c.dx), _compactSupport(c.compactSupport),
         _restDistance(c.restDistance), _state(ALLOCATED) 
 {
-
     _maxDist = std::max<float>(_restDistance, _compactSupport);    
 }
 //-----------------------------------------------------------------------------
 BoundaryMap::~BoundaryMap() 
 {
+    saveDeleteArray<float>(&_nodeContentsTable);
+    saveDeleteArray<unsigned int>(&_indexMap);
+    _nodeContents.getNumCoordinates();   
+    std::list<Coordinate>::const_iterator& it = _nodeContents.begin(); 
+    std::list<Coordinate>::const_iterator& end = _nodeContents.end();
+    Coordinate c;
+    
+    float* nodeContent;
+
+    for (; it != end; it++)
+    {
+        _nodeContents.get(nodeContent, c);
+        delete[] nodeContent;
+    }
 }
 //-----------------------------------------------------------------------------
 void BoundaryMap::addCanvas(const TriangleMesh& mesh)
@@ -222,11 +241,16 @@ void BoundaryMap::load(const std::string& filename)
     _indexMap = new unsigned int[_totalSamples];
     _nodeContentsTable = new float[(_nCoordinates + 1)*NC_NUM_ELEMENTS];
     _nodeContentsTable[NC_DISTANCE] = _restDistance;
-    memset(_indexMap, 0, sizeof(unsigned int)*_totalSamples);
+
+    for (unsigned int i = 0; i < _totalSamples; i++)
+    {
+        _indexMap[i] = 0;
+    }
+
     unsigned int coord[3];
     unsigned int idx;
     float content;
-
+    
     for (unsigned int i = 0; i < _nCoordinates; i++)
     {
         file >> coord[0];
@@ -241,10 +265,61 @@ void BoundaryMap::load(const std::string& filename)
             _nodeContentsTable[(i + 1)*NC_NUM_ELEMENTS + j] = content;
         }
     }
-
+    
 
     file.close();
 
+}
+//-----------------------------------------------------------------------------
+unsigned int BoundaryMap::getNumCoordinates() const
+{
+    return _nCoordinates;
+}
+//-----------------------------------------------------------------------------
+unsigned int BoundaryMap::getNumTotalSamples() const
+{
+    return _totalSamples;
+}
+//-----------------------------------------------------------------------------
+const float* BoundaryMap::getNodeTable() const 
+{
+    return _nodeContentsTable;
+}
+//-----------------------------------------------------------------------------
+const unsigned int* BoundaryMap::getIndexMap() const 
+{
+    return _indexMap;
+}
+//-----------------------------------------------------------------------------
+const Rectangle3f& BoundaryMap::getDomain() const
+{
+    return _domain;
+}
+//-----------------------------------------------------------------------------
+unsigned int BoundaryMap::getIMax() const
+{
+    return _iMax;
+}
+//-----------------------------------------------------------------------------
+unsigned int BoundaryMap::getJMax() const
+{
+    return _jMax;
+}
+//-----------------------------------------------------------------------------
+unsigned int BoundaryMap::getKMax() const
+{
+    return _kMax;
+}
+//-----------------------------------------------------------------------------
+float BoundaryMap::getDx() const
+{
+    return _dx;
+}
+
+//-----------------------------------------------------------------------------
+float BoundaryMap::getRestDistance() const
+{
+    return _restDistance;
 }
 
 //-----------------------------------------------------------------------------

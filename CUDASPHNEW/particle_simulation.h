@@ -93,7 +93,7 @@ public:
     ***         and the given particle system.
     ***
     *** Allocates memory to store particle information on the device and copies
-    *** the initial particle informations to it.
+    *** the initial particle information to it.
     **/
     void init();
 
@@ -211,6 +211,10 @@ private:
     /* Host and device information */
     SimulationParameters _parameters;       /* simulation parameters */
 
+    /* boundary handling information */
+    std::string _boundaryMapFileName;
+    float* _boundaryMapNodeTableDevPtr;
+    unsigned int* _boundaryMapIndexMapDevPtr;
 
     /* */
     float _leftI;

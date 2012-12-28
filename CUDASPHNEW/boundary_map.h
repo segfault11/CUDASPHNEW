@@ -8,8 +8,17 @@
 
 enum GenerationMode
 {
-    BM_NOSWAP,
-    BM_HDDSWAP
+    GM_NOSWAP,
+    GM_HDDSWAP
+};
+
+enum
+{
+    NC_DISTANCE,
+    NC_NORMAL_X,
+    NC_NORMAL_Y,
+    NC_NORMAL_Z,
+    NC_NUM_ELEMENTS
 };
 
 class BoundaryMapConfiguration
@@ -22,14 +31,6 @@ public:
 
 class BoundaryMap
 {
-    enum
-    {
-        NC_DISTANCE,
-        NC_NORMAL_X,
-        NC_NORMAL_Y,
-        NC_NORMAL_Z,
-        NC_NUM_ELEMENTS
-    };
 
     enum State
     {
@@ -39,6 +40,7 @@ class BoundaryMap
     };
 
 public:
+    BoundaryMap();
     BoundaryMap(const BoundaryMapConfiguration& c);
     ~BoundaryMap();
 
@@ -47,14 +49,19 @@ public:
     void saveSlice(const std::string& filename) const;
     void generate();
 
-
-    const float* getDistances() const;
+    // access to class
+    const float* getNodeTable() const;
     const unsigned int* getIndexMap() const;
+    unsigned int getNumCoordinates() const;
+    unsigned int getNumTotalSamples() const;
     unsigned int getIMax() const;
     unsigned int getJMax() const;
     unsigned int getKMax() const;
-    Rectangle3f getDomain() const;
+    float getDx() const;
+    float getRestDistance() const;
+    const Rectangle3f& getDomain() const;
 
+    // save/load boundary map
     void save(const std::string& filename) const;
     void load(const std::string& filename);
 

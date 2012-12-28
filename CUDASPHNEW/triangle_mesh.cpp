@@ -60,10 +60,6 @@ void TriangleMesh::translate(const Vector3f& v)
 //-----------------------------------------------------------------------------
 void TriangleMesh::fit(const Rectangle3f& rect)
 {
-    std::cout << "bb before fit" << std::endl;
-    _boundingBox.dump();
-    std::cout << "bb before fit" << std::endl;
-
     float deltaBB[3];
     float deltaRect[3];
     deltaBB[0] = _boundingBox.getV2().getX() - _boundingBox.getV1().getX();
@@ -89,10 +85,6 @@ void TriangleMesh::fit(const Rectangle3f& rect)
     Vector3f d(diff[0], diff[1], diff[2]);
 
     this->translate(d);
-
-    std::cout << "bb after fit" << std::endl;
-    _boundingBox.dump();
-    std::cout << "bb after fit" << std::endl;
 }
 //-----------------------------------------------------------------------------
 void TriangleMesh::scale(float s)

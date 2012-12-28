@@ -8,11 +8,15 @@
 #include "particle_simulation.h"
 #include "util.h"
 #include "cgtk\include\clock.h"
+#include "boundary_map.h"
 
-/** DEVICE CODE **************************************************************/
+//-----------------------------------------------------------------------------
+//  DEVICE CODE 
+//-----------------------------------------------------------------------------
 
-
-/** global device variables **************************************************/
+//-----------------------------------------------------------------------------
+//  global device variables 
+//-----------------------------------------------------------------------------
 __constant__ SimulationParameters gSimParamsDev;
 
 texture<float, cudaTextureType1D, cudaReadModeElementType> 
@@ -28,7 +32,21 @@ texture<int, cudaTextureType1D, cudaReadModeElementType>
 texture<int, cudaTextureType1D, cudaReadModeElementType> 
     gParticleHashList;
 
-/** declaration of aux. functions (device) ***********************************/
+/*  information about boundary handling
+*/
+__constant__ float gBoundaryOrigin[3];
+__constant__ float gDx;
+__constant__ unsigned int gnBoundarySamples[3];
+__constant__ float gRestDistance;
+
+texture<float, cudaTextureType1D, cudaReadModeElementType> 
+    gNodeTable;
+texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> 
+    gIndexMap;
+
+//-----------------------------------------------------------------------------
+//  declaration of aux. functions (device) 
+//-----------------------------------------------------------------------------
 __device__ inline int3 compute_grid_coordinate(float3 pos, float d);
 __device__ inline int compute_hash_from_grid_coordinate(int i, int j, int k);
 __device__ inline float compute_distance(float3 a, float3 b);
@@ -44,10 +62,9 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
     float3* force, float3* colGra, float* colLapl,
     float3* sumPosNeighbor, float* nNeighbors);
 
-
-/** CUDA Kernel definitions **************************************************/
-
-
+//-----------------------------------------------------------------------------
+// CUDA Kernel definitions 
+//-----------------------------------------------------------------------------
 __global__ void compute_particle_hash(float* particleVertexData, 
     int* particleIdList, int* particleHashList) 
 {
@@ -79,7 +96,7 @@ __global__ void compute_particle_hash(float* particleVertexData,
     particleIdList[idx] = idx;
     particleHashList[idx] = hash;
 }
-
+//-----------------------------------------------------------------------------
 __global__ void compute_cell_start_end(int* particleHashList, 
 	int* cellStartList,  int* cellEndList)
 {
@@ -114,7 +131,7 @@ __global__ void compute_cell_start_end(int* particleHashList,
         }
     }
 }
-
+//-----------------------------------------------------------------------------
 /*  Compute density and pressure for each particle 
 */
 __global__ void compute_particle_density_pressure(float* particleVertexData, 
@@ -165,7 +182,7 @@ __global__ void compute_particle_density_pressure(float* particleVertexData,
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY] = density;
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE] = pressure; 
 }
-
+//-----------------------------------------------------------------------------
 __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData, 
 	float* particleSimulationData, int* particleIdList, int* cellStartList,
     int* cellEndList, int* isSurfaceParticle)
@@ -281,7 +298,7 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
         isSurfaceParticle[id] = 0;
     }
 }
-
+//-----------------------------------------------------------------------------
 __global__ void integrate_euler(float* particleVertexData, 
     float* particleSimulationData)
 {
@@ -302,6 +319,13 @@ __global__ void integrate_euler(float* particleVertexData,
     particleSimulationData[idSim + SD_VEL0_Z] += 
         dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_Z);
 
+    particleSimulationData[idSim + SD_VEL0_X] += 
+       0.0f;
+    particleSimulationData[idSim + SD_VEL0_Y] += 
+        -dt;
+    particleSimulationData[idSim + SD_VEL0_Z] += 
+        0.0f;
+
     particleVertexData[idVert + VD_POS_X] += 
         dt*particleSimulationData[idSim + SD_VEL0_X];
     particleVertexData[idVert + VD_POS_Y] += 
@@ -309,6 +333,99 @@ __global__ void integrate_euler(float* particleVertexData,
     particleVertexData[idVert + VD_POS_Z] += 
         dt*particleSimulationData[idSim + SD_VEL0_Z];
 }
+//-----------------------------------------------------------------------------
+//__global__ void collision_handling(float* particleVertexData, 
+//    float* particleSimulationData)
+//{
+//    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+//
+//    if (idx >= gSimParamsDev.nParticles) {
+//        return;
+//    }
+//
+//    unsigned int idVert = idx*VD_NUM_ELEMENTS;
+//    unsigned int idSim = idx*SD_NUM_ELEMENTS;
+//
+//    float3 pos;
+//    float3 vel;
+//
+//    pos.x = tex1Dfetch(gParticleVertexData, idVert + VD_POS_X);
+//    pos.y = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Y);
+//    pos.z = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Z);
+//
+//    vel.x = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_X);
+//    vel.y = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Y);
+//    vel.z = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Z);
+//
+//    float3 local;
+//    float3 diff;
+//    float3 nrm;
+//
+//    float dist;
+//    float depth;
+//
+//    // compute "distance" to box, if positive the particle
+//    // is outside the box.
+//
+//    // compute local position of the particle to the box
+//    local.x = pos.x - gSimParamsDev.boxCen[0];
+//    local.y = pos.y - gSimParamsDev.boxCen[1];
+//    local.z = pos.z - gSimParamsDev.boxCen[2];
+//
+//    // project local pos to the upper right quadrand and
+//    // compute difference to the boxDim vec
+//    diff.x = abs(local.x) - gSimParamsDev.boxDim[0];
+//    diff.y = abs(local.y) - gSimParamsDev.boxDim[1];
+//    diff.z = abs(local.z) - gSimParamsDev.boxDim[2];
+//
+//    dist = max(diff.x, diff.y);
+//    dist = max(dist, diff.z);
+//    
+//    // if the particle lies outside the box, the collision must be handled
+//    float3 contact;
+//    
+//    if (dist > 0.0f) {
+//
+//        // contact point in "box space"
+//        contact.x = min(gSimParamsDev.boxDim[0], 
+//            max(-gSimParamsDev.boxDim[0], local.x));
+//        contact.y = min(gSimParamsDev.boxDim[1],
+//            max(-gSimParamsDev.boxDim[1], local.y));
+//        contact.z = min(gSimParamsDev.boxDim[2],
+//            max(-gSimParamsDev.boxDim[2], local.z));
+//
+//        // translate to worldspace
+//        contact.x += gSimParamsDev.boxCen[0];
+//        contact.y += gSimParamsDev.boxCen[1];
+//        contact.z += gSimParamsDev.boxCen[2];
+//
+//        // compute penetration depth
+//        depth = compute_distance(contact, pos);
+//
+//        // compute normal
+//        nrm.x = pos.x - contact.x;
+//        nrm.y = pos.y - contact.y;
+//        nrm.z = pos.z - contact.z;
+//        normalize(nrm);
+//
+//        float velNorm = norm(vel);
+//        float dp    = dot_product(nrm, vel);
+//        float coeff = (1 + gSimParamsDev.restitution*depth/
+//            (gSimParamsDev.timeStep*velNorm))*dp;
+//
+//        vel.x -= coeff*nrm.x;
+//        vel.y -= coeff*nrm.y;
+//        vel.z -= coeff*nrm.z;
+//
+//        particleVertexData[idVert + VD_POS_X] = contact.x;
+//        particleVertexData[idVert + VD_POS_Y] = contact.y;
+//        particleVertexData[idVert + VD_POS_Z] = contact.z;
+//
+//        particleSimulationData[idSim + SD_VEL0_X] = vel.x;
+//        particleSimulationData[idSim + SD_VEL0_Y] = vel.y;
+//        particleSimulationData[idSim + SD_VEL0_Z] = vel.z;
+//    }
+//}
 
 
 __global__ void collision_handling(float* particleVertexData, 
@@ -316,7 +433,8 @@ __global__ void collision_handling(float* particleVertexData,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles) {
+    if (idx >= gSimParamsDev.nParticles)
+    {
         return;
     }
 
@@ -334,78 +452,26 @@ __global__ void collision_handling(float* particleVertexData,
     vel.y = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Y);
     vel.z = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Z);
 
-    float3 local;
-    float3 diff;
-    float3 nrm;
+    //
+    unsigned int i,j,k;
+    i = (unsigned int)((pos.x - gBoundaryOrigin[0])/gDx);
+    j = (unsigned int)((pos.y - gBoundaryOrigin[1])/gDx);
+    k = (unsigned int)((pos.z - gBoundaryOrigin[2])/gDx);
+    unsigned int idx2 = i + gnBoundarySamples[0]*(j + gnBoundarySamples[1]*k);
+    unsigned int nodeIdx = tex1Dfetch(gIndexMap, idx2);
+    float dist = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_DISTANCE);
 
-    float dist;
-    float depth;
-
-    // compute "distance" to box, if positive the particle
-    // is outside the box.
-
-    // compute local position of the particle to the box
-    local.x = pos.x - gSimParamsDev.boxCen[0];
-    local.y = pos.y - gSimParamsDev.boxCen[1];
-    local.z = pos.z - gSimParamsDev.boxCen[2];
-
-    // project local pos to the upper right quadrand and
-    // compute difference to the boxDim vec
-    diff.x = abs(local.x) - gSimParamsDev.boxDim[0];
-    diff.y = abs(local.y) - gSimParamsDev.boxDim[1];
-    diff.z = abs(local.z) - gSimParamsDev.boxDim[2];
-
-    dist = max(diff.x, diff.y);
-    dist = max(dist, diff.z);
-    
-    // if the particle lies outside the box, the collision must be handled
-    float3 contact;
-    
-    if (dist > 0.0f) {
-
-        // contact point in "box space"
-        contact.x = min(gSimParamsDev.boxDim[0], 
-            max(-gSimParamsDev.boxDim[0], local.x));
-        contact.y = min(gSimParamsDev.boxDim[1],
-            max(-gSimParamsDev.boxDim[1], local.y));
-        contact.z = min(gSimParamsDev.boxDim[2],
-            max(-gSimParamsDev.boxDim[2], local.z));
-
-        // translate to worldspace
-        contact.x += gSimParamsDev.boxCen[0];
-        contact.y += gSimParamsDev.boxCen[1];
-        contact.z += gSimParamsDev.boxCen[2];
-
-        // compute penetration depth
-        depth = compute_distance(contact, pos);
-
-        // compute normal
-        nrm.x = pos.x - contact.x;
-        nrm.y = pos.y - contact.y;
-        nrm.z = pos.z - contact.z;
-        normalize(nrm);
-
-        float velNorm = norm(vel);
-        float dp    = dot_product(nrm, vel);
-        float coeff = (1 + gSimParamsDev.restitution*depth/
-            (gSimParamsDev.timeStep*velNorm))*dp;
-
-        vel.x -= coeff*nrm.x;
-        vel.y -= coeff*nrm.y;
-        vel.z -= coeff*nrm.z;
-
-        particleVertexData[idVert + VD_POS_X] = contact.x;
-        particleVertexData[idVert + VD_POS_Y] = contact.y;
-        particleVertexData[idVert + VD_POS_Z] = contact.z;
-
-        particleSimulationData[idSim + SD_VEL0_X] = vel.x;
-        particleSimulationData[idSim + SD_VEL0_Y] = vel.y;
-        particleSimulationData[idSim + SD_VEL0_Z] = vel.z;
+    if (nodeIdx != 0)
+    {
+        particleVertexData[idVert + VD_POS_X] -= gSimParamsDev.timeStep*vel.x;
+        particleVertexData[idVert + VD_POS_Y] -= gSimParamsDev.timeStep*vel.y;
+        particleVertexData[idVert + VD_POS_Z] -= gSimParamsDev.timeStep*vel.z;
     }
 }
 
-
-/** definition of aux. functions (device) ************************************/
+//-----------------------------------------------------------------------------
+// definition of aux. functions (device) 
+//-----------------------------------------------------------------------------
 __device__ inline int3 compute_grid_coordinate(float3 pos, float d)
 {
     int3 gridCoord;
@@ -427,17 +493,17 @@ __device__ inline int3 compute_grid_coordinate(float3 pos, float d)
 
     return gridCoord;
 }
-
+//-----------------------------------------------------------------------------
 __device__ inline int compute_hash_from_grid_coordinate(int i, int j, int k)
 {
     return gSimParamsDev.gridDim[0]*(gSimParamsDev.gridDim[1]*k + j) + i;
 }
-
+//-----------------------------------------------------------------------------
 __device__ inline float norm(const float3& a)
 {
     return sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
 }
-
+//-----------------------------------------------------------------------------
 __device__ inline void normalize(float3& a)
 {
     float norm = sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
@@ -445,7 +511,7 @@ __device__ inline void normalize(float3& a)
     a.y /= norm;
     a.z /= norm;
 }
-
+//-----------------------------------------------------------------------------
 /*  Computes the Euclidean distance between two points.
 */
 __device__ inline float compute_distance(float3 a, float3 b)
@@ -453,12 +519,12 @@ __device__ inline float compute_distance(float3 a, float3 b)
     return sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y) 
         + (a.z-b.z)*(a.z-b.z));
 }
-
+//-----------------------------------------------------------------------------
 __device__ inline float dot_product(const float3& a, const float3& b)  
 {
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
-
+//-----------------------------------------------------------------------------
 /*  Computes the contribution of neighborparticles of one particular grid cell
 **  to the density of the particle at position [pos].
 */
@@ -495,7 +561,7 @@ __device__ float compute_particle_density_cell(const float3 &pos,
 
     return density;
 }
-
+//-----------------------------------------------------------------------------
 __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
     const float3& xi, float rhoi, float pi, const float3& vi,
     float* particleVertexData, float* particleSimulationData, 
@@ -634,7 +700,6 @@ ParticleSimulation* ParticleSimulation::example01()
     // create a particle simulation 
     ParticleSimulation* sim = new ParticleSimulation();
 
-
     // create box (cube) of particles
     create_particle_box(-0.25f, -0.25f, -0.25f, 0.5f, 120000, 
         &sim->_particleVertexData, &sim->_particleSimulationData,
@@ -659,17 +724,14 @@ ParticleSimulation* ParticleSimulation::example01()
     // compute the kernel radius
     float h = powf((3.0f*0.5f*0.5f*0.5f*sim->_parameters.kernelParticles)/
         (4.0f*M_PI*sim->_parameters.nParticles), 1.0f/3.0f);
- 
-
-    std::cout << "h = " << h << std::endl; 
 
     sim->_parameters.compactSupport =  h;
     sim->_parameters.poly6 =  315.0f/(64.0f*M_PI*h*h*h*h*h*h*h*h*h);
     sim->_parameters.gradPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
     sim->_parameters.laplPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
     sim->_parameters.gradSpiky = -45.0f/(M_PI*h*h*h*h*h*h);
-    sim->_parameters.laplVisc =  45.0f/(M_PI*h*h*h*h*h*h);
-    sim->_parameters.timeStep = 0.003;
+    sim->_parameters.laplVisc  =  45.0f/(M_PI*h*h*h*h*h*h);
+    sim->_parameters.timeStep  = 0.003;
     
     // set the simulation domain
     set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, 
@@ -686,6 +748,12 @@ ParticleSimulation* ParticleSimulation::example01()
     sim->_parameters.boxDim[0] = 0.7f;    
     sim->_parameters.boxDim[1] = 0.5f;    
     sim->_parameters.boxDim[2] = 0.3f;    
+
+
+    // set parameters for new boundary handling
+    sim->_boundaryMapFileName = std::string("icosphere.txt");
+
+
 
     // set parameters for surface extraction
     sim->_parameters.cmDistanceThresh = 0.5f;
@@ -825,6 +893,8 @@ void ParticleSimulation::init()
 		cudaChannelFormatKindFloat);
     cudaChannelFormatDesc desci = cudaCreateChannelDesc(32, 0, 0, 0,
 		cudaChannelFormatKindSigned);
+    cudaChannelFormatDesc descu = cudaCreateChannelDesc(32, 0, 0, 0,
+		cudaChannelFormatKindUnsigned);
 
     CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleSimulationData, 
         _particleSimulationDataDevPtr, descf, 
@@ -852,9 +922,69 @@ void ParticleSimulation::init()
     _blocks = _parameters.nParticles % _threadsPerBlock == 0 ?
         _parameters.nParticles/_threadsPerBlock : 
         _parameters.nParticles/_threadsPerBlock + 1; 
+    
+    //
+    // Init boundary handling
+    //
+    BoundaryMap bmap;
+    std::cout << "loading boundary information ... " << std::endl;
+    bmap.load("icosphere.txt");
+    std::cout << "finished loading" << std::endl;
+   
+    unsigned int nCoords = bmap.getNumCoordinates();
+    unsigned int totalSamples = bmap.getNumTotalSamples();
+
+    CUDA_SAFE_CALL( cudaMalloc(&_boundaryMapIndexMapDevPtr, 
+        totalSamples*sizeof(unsigned int)) );
+    
+    CUDA_SAFE_CALL( cudaMalloc(&_boundaryMapNodeTableDevPtr, 
+        NC_NUM_ELEMENTS*nCoords*sizeof(float)) );
+
+    for (unsigned int i = 0; i < 10; i++) 
+    {
+        std::cout << bmap.getIndexMap()[i] << std::endl;
+    }
+
+    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapIndexMapDevPtr, bmap.getIndexMap(),
+        sizeof(unsigned int)*totalSamples, cudaMemcpyHostToDevice) );
+
+    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapNodeTableDevPtr, bmap.getNodeTable(),
+        NC_NUM_ELEMENTS*nCoords*sizeof(float), cudaMemcpyHostToDevice) );
+
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gIndexMap, _boundaryMapIndexMapDevPtr, 
+        descu, totalSamples*sizeof(unsigned int)) );
+
+    CUDA_SAFE_CALL ( cudaBindTexture(0, gNodeTable, _boundaryMapNodeTableDevPtr, 
+        descf, NC_NUM_ELEMENTS*nCoords*sizeof(float)) );
+
+    unsigned int nSamples[3];
+    nSamples[0] = bmap.getIMax();
+    nSamples[1] = bmap.getJMax();
+    nSamples[2] = bmap.getKMax();
+
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gnBoundarySamples, nSamples, 
+		3*sizeof(unsigned int), 0, cudaMemcpyHostToDevice) );
+
+    float origin[3];
+    origin[0] = bmap.getDomain().getV1().getX();
+    origin[1] = bmap.getDomain().getV1().getY();
+    origin[2] = bmap.getDomain().getV1().getZ();
+
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryOrigin, origin, 
+		3*sizeof(float), 0, cudaMemcpyHostToDevice) );
+
+    float dx = bmap.getDx();
+
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gDx, &dx, 
+		sizeof(float), 0, cudaMemcpyHostToDevice) );
+
+    float restDist = bmap.getRestDistance();
+
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gRestDistance, &restDist, 
+		sizeof(float), 0, cudaMemcpyHostToDevice) );
+
 }
-
-
+//-----------------------------------------------------------------------------
 void ParticleSimulation::bind() const 
 {
     // copy simulation parameters to constant memory on device.
@@ -866,13 +996,13 @@ void ParticleSimulation::advance()
 {
     cgtkClockStart();
     this->map();
-    this->integrate();
-    this->handleCollisions();
     this->computeParticleHash();
     this->sortParticleIdsByHash();
     this->computeCellStartEndList();
     this->computeDensityPressure();
     this->computeAcceleration();
+    this->integrate();
+    this->handleCollisions();
     this->unmap();
     //cgtkClockDumpElapsed();
 }
@@ -1020,27 +1150,36 @@ void ParticleSimulation::saveInfoTable(const std::string& filename)
     file << setw(8) << "index" << setw(12) << " id" << setw(12) << 
         " hash" << setw(12) << " start" << setw(12) << " end" << endl;
 
-    for (unsigned int i = 0; i < cellListSize; i++) {
+    for (unsigned int i = 0; i < cellListSize; i++) 
+    {
         file << setw(8) << i;
 
-        if(i < _parameters.nParticles) {
+        if(i < _parameters.nParticles)
+        {
             file << setw(12) << pIdList[i];
             file << setw(12) << pHashList[i];
-        } else {
+        } 
+        else 
+        {
             file << setw(12) << "";
             file << setw(12) << "";
         }
 
-        if(pCellStartList[i] == EMPTY_CELL) {
+        if(pCellStartList[i] == EMPTY_CELL) 
+        {
             file << setw(12) << "";
-        } else {
+        } 
+        else
+        {
             file << setw(12) << pCellStartList[i];
         }
         
         if(pCellEndList[i] == EMPTY_CELL)
         {
             file << setw(12) << "" << endl;
-        } else {
+        } 
+        else
+        {
             file << setw(12) << pCellEndList[i] << endl;
         }
     }
@@ -1092,7 +1231,8 @@ void ParticleSimulation::saveParticleInfo(const std::string& filename)
     file << setw(columnWidth) << "Acc Z";
     file << endl;
 
-    for (unsigned int i = 0; i < _parameters.nParticles; i++) {
+    for (unsigned int i = 0; i < _parameters.nParticles; i++) 
+    {
         file << setw(columnWidth) << i;
         file << setw(columnWidth) 
             << particleVertexData[VD_NUM_ELEMENTS*i + VD_POS_X];
@@ -1146,7 +1286,8 @@ void create_particle_box(float sx, float sy, float sz, float d,
     *particleSD = new float[*nParticlesCreated*SD_NUM_ELEMENTS];
 
     // check if new failed.
-    if ((*particleSD) == NULL || (*particleSD) == NULL) {
+    if ((*particleSD) == NULL || (*particleSD) == NULL)
+    {
         *nParticlesCreated = 0;
         return;
     }
