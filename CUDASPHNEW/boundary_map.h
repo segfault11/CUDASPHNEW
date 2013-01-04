@@ -28,7 +28,9 @@ public:
     float compactSupport;
     float dx;
 };
-
+//-----------------------------------------------------------------------------
+//
+//-----------------------------------------------------------------------------
 class BoundaryMap
 {
 
@@ -39,49 +41,75 @@ class BoundaryMap
         GENERATED
     };
 
+    class Particle
+    {
+    public:
+        Particle (const Vector3f& v)
+            : pos(v)
+        {
+        }
+        ~Particle ()
+        {
+        }
+        Vector3f pos;
+    };
+
+    class ParticleManager
+    {
+    public:
+        ParticleManager ();
+        ~ParticleManager ();
+        void Seed ();
+    };
+
+
 public:
-    BoundaryMap();
+    BoundaryMap(const std::string& filename);
     BoundaryMap(const BoundaryMapConfiguration& c);
     ~BoundaryMap();
 
-    void addCanvas(const TriangleMesh& mesh);
-    void addObstacle(const TriangleMesh& mesh);
-    void saveSlice(const std::string& filename) const;
-    void generate();
+    void AddCanvas (const TriangleMesh& mesh);
+    void AddObstacle (const TriangleMesh& mesh);
+    void SaveSlice (const std::string& filename) const;
+    void Generate ();
+    
+    // Reset the objects state to ALLOCATED. Free all resources hold by the
+    // object.
+    void Reset ();
 
     // access to class
-    const float* getNodeTable() const;
-    const unsigned int* getIndexMap() const;
-    unsigned int getNumCoordinates() const;
-    unsigned int getNumTotalSamples() const;
-    unsigned int getIMax() const;
-    unsigned int getJMax() const;
-    unsigned int getKMax() const;
-    float getDx() const;
-    float getRestDistance() const;
-    const Rectangle3f& getDomain() const;
+    const float* GetNodeTable () const;
+    const unsigned int* GetIndexMap () const;
+    unsigned int GetNumCoordinates () const;
+    unsigned int GetNumTotalSamples () const;
+    unsigned int GetIMax () const;
+    unsigned int GetJMax () const;
+    unsigned int GetKMax () const;
+    float GetDx () const;
+    float GetRestDistance () const;
+    const Rectangle3f& GetDomain () const;
 
-    // save/load boundary map
-    void save(const std::string& filename) const;
-    void load(const std::string& filename);
+    // Save/Load boundary map
+    void Save (const std::string& filename) const;
+    void Load (const std::string& filename);
 
-    void dump() const;
+    void Dump () const;
 
 protected:
-    float _restDistance;
-    float _compactSupport;
-    float _maxDist;
-    float _dx;
-    Rectangle3f _domain;
-    unsigned int _iMax, _jMax, _kMax;
-    unsigned int _totalSamples;
-    unsigned int _nCoordinates;
+    float mRestDistance;
+    float mCompactSupport;
+    float mMaxDist;
+    float mDx;
+    Rectangle3f mDomain;
+    unsigned int mIMax, mJMax, mKMax;
+    unsigned int mTotalSamples;
+    unsigned int mNumCoordinates;
     
-    SparseVoxelMap<float*> _nodeContents;
-    unsigned int* _indexMap;
-    float* _nodeContentsTable;
+    SparseVoxelMap<float*> mNodeContents;
+    unsigned int* mIndexMap;
+    float* mNodeContentsTable;
 
-    State _state;
+    State mState;
 
 private:
     inline void computeSignedDistanceField(SparseVoxelMap<float*>& map, 

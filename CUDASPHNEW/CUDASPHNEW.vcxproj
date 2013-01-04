@@ -36,6 +36,7 @@
     <ClInclude Include="cgtk\include\opengl.h" />
     <ClInclude Include="point_in_mesh_test.h" />
     <ClInclude Include="sparse_voxel_map.h" />
+    <ClInclude Include="SpatialHashMap.h" />
     <ClInclude Include="triangle_mesh.h" />
     <ClInclude Include="obstacle_renderer.h" />
     <ClInclude Include="particle_renderer01.h" />
@@ -60,6 +61,7 @@
     <None Include="particle_renderer02_g.glsl" />
     <None Include="particle_renderer02_v.glsl" />
     <None Include="sparse_voxel_map.inl" />
+    <None Include="SpatialHashMap.inl" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="particle_simulation.cu" />

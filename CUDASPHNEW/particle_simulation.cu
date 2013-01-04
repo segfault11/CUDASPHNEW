@@ -275,6 +275,37 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
         force.z -= fCoeff*colGra.z;
     }
 
+
+
+    // compute contribution of boundary to the pressure force
+    unsigned int i, j, k;
+    
+    i = (unsigned int)((pos.x - gBoundaryOrigin[0])/gDx);
+    j = (unsigned int)((pos.y - gBoundaryOrigin[1])/gDx);
+    k = (unsigned int)((pos.z - gBoundaryOrigin[2])/gDx);
+
+    unsigned int idx2 = i + gnBoundarySamples[0]*(j + gnBoundarySamples[1]*k);
+    unsigned int nodeIdx = tex1Dfetch(gIndexMap, idx2);
+    float dist = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_DISTANCE);
+    
+    float3 bNorm;
+
+    bNorm.x = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_X);
+    bNorm.y = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_Y);
+    bNorm.z = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_Z);
+    
+    float3 boundaryForce;
+    float bCoeff;
+
+    bCoeff = gSimParamsDev.particleMass*(gRestDistance - dist)/
+        (gSimParamsDev.timeStep*gSimParamsDev.timeStep);
+
+    boundaryForce.x = bCoeff*bNorm.x;
+    boundaryForce.y = bCoeff*bNorm.y;
+    boundaryForce.z = bCoeff*bNorm.z;
+
+    
+
     // store the actual acceleration
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_X] = force.x/density;  
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Y] = force.y/density
@@ -319,13 +350,6 @@ __global__ void integrate_euler(float* particleVertexData,
     particleSimulationData[idSim + SD_VEL0_Z] += 
         dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_Z);
 
-    particleSimulationData[idSim + SD_VEL0_X] += 
-       0.0f;
-    particleSimulationData[idSim + SD_VEL0_Y] += 
-        -dt;
-    particleSimulationData[idSim + SD_VEL0_Z] += 
-        0.0f;
-
     particleVertexData[idVert + VD_POS_X] += 
         dt*particleSimulationData[idSim + SD_VEL0_X];
     particleVertexData[idVert + VD_POS_Y] += 
@@ -334,107 +358,12 @@ __global__ void integrate_euler(float* particleVertexData,
         dt*particleSimulationData[idSim + SD_VEL0_Z];
 }
 //-----------------------------------------------------------------------------
-//__global__ void collision_handling(float* particleVertexData, 
-//    float* particleSimulationData)
-//{
-//    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
-//
-//    if (idx >= gSimParamsDev.nParticles) {
-//        return;
-//    }
-//
-//    unsigned int idVert = idx*VD_NUM_ELEMENTS;
-//    unsigned int idSim = idx*SD_NUM_ELEMENTS;
-//
-//    float3 pos;
-//    float3 vel;
-//
-//    pos.x = tex1Dfetch(gParticleVertexData, idVert + VD_POS_X);
-//    pos.y = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Y);
-//    pos.z = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Z);
-//
-//    vel.x = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_X);
-//    vel.y = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Y);
-//    vel.z = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Z);
-//
-//    float3 local;
-//    float3 diff;
-//    float3 nrm;
-//
-//    float dist;
-//    float depth;
-//
-//    // compute "distance" to box, if positive the particle
-//    // is outside the box.
-//
-//    // compute local position of the particle to the box
-//    local.x = pos.x - gSimParamsDev.boxCen[0];
-//    local.y = pos.y - gSimParamsDev.boxCen[1];
-//    local.z = pos.z - gSimParamsDev.boxCen[2];
-//
-//    // project local pos to the upper right quadrand and
-//    // compute difference to the boxDim vec
-//    diff.x = abs(local.x) - gSimParamsDev.boxDim[0];
-//    diff.y = abs(local.y) - gSimParamsDev.boxDim[1];
-//    diff.z = abs(local.z) - gSimParamsDev.boxDim[2];
-//
-//    dist = max(diff.x, diff.y);
-//    dist = max(dist, diff.z);
-//    
-//    // if the particle lies outside the box, the collision must be handled
-//    float3 contact;
-//    
-//    if (dist > 0.0f) {
-//
-//        // contact point in "box space"
-//        contact.x = min(gSimParamsDev.boxDim[0], 
-//            max(-gSimParamsDev.boxDim[0], local.x));
-//        contact.y = min(gSimParamsDev.boxDim[1],
-//            max(-gSimParamsDev.boxDim[1], local.y));
-//        contact.z = min(gSimParamsDev.boxDim[2],
-//            max(-gSimParamsDev.boxDim[2], local.z));
-//
-//        // translate to worldspace
-//        contact.x += gSimParamsDev.boxCen[0];
-//        contact.y += gSimParamsDev.boxCen[1];
-//        contact.z += gSimParamsDev.boxCen[2];
-//
-//        // compute penetration depth
-//        depth = compute_distance(contact, pos);
-//
-//        // compute normal
-//        nrm.x = pos.x - contact.x;
-//        nrm.y = pos.y - contact.y;
-//        nrm.z = pos.z - contact.z;
-//        normalize(nrm);
-//
-//        float velNorm = norm(vel);
-//        float dp    = dot_product(nrm, vel);
-//        float coeff = (1 + gSimParamsDev.restitution*depth/
-//            (gSimParamsDev.timeStep*velNorm))*dp;
-//
-//        vel.x -= coeff*nrm.x;
-//        vel.y -= coeff*nrm.y;
-//        vel.z -= coeff*nrm.z;
-//
-//        particleVertexData[idVert + VD_POS_X] = contact.x;
-//        particleVertexData[idVert + VD_POS_Y] = contact.y;
-//        particleVertexData[idVert + VD_POS_Z] = contact.z;
-//
-//        particleSimulationData[idSim + SD_VEL0_X] = vel.x;
-//        particleSimulationData[idSim + SD_VEL0_Y] = vel.y;
-//        particleSimulationData[idSim + SD_VEL0_Z] = vel.z;
-//    }
-//}
-
-
 __global__ void collision_handling(float* particleVertexData, 
     float* particleSimulationData)
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles)
-    {
+    if (idx >= gSimParamsDev.nParticles) {
         return;
     }
 
@@ -452,22 +381,123 @@ __global__ void collision_handling(float* particleVertexData,
     vel.y = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Y);
     vel.z = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Z);
 
-    //
-    unsigned int i,j,k;
-    i = (unsigned int)((pos.x - gBoundaryOrigin[0])/gDx);
-    j = (unsigned int)((pos.y - gBoundaryOrigin[1])/gDx);
-    k = (unsigned int)((pos.z - gBoundaryOrigin[2])/gDx);
-    unsigned int idx2 = i + gnBoundarySamples[0]*(j + gnBoundarySamples[1]*k);
-    unsigned int nodeIdx = tex1Dfetch(gIndexMap, idx2);
-    float dist = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_DISTANCE);
+    float3 local;
+    float3 diff;
+    float3 nrm;
 
-    if (nodeIdx != 0)
-    {
-        particleVertexData[idVert + VD_POS_X] -= gSimParamsDev.timeStep*vel.x;
-        particleVertexData[idVert + VD_POS_Y] -= gSimParamsDev.timeStep*vel.y;
-        particleVertexData[idVert + VD_POS_Z] -= gSimParamsDev.timeStep*vel.z;
+    float dist;
+    float depth;
+
+    // compute "distance" to box, if positive the particle
+    // is outside the box.
+
+    // compute local position of the particle to the box
+    local.x = pos.x - gSimParamsDev.boxCen[0];
+    local.y = pos.y - gSimParamsDev.boxCen[1];
+    local.z = pos.z - gSimParamsDev.boxCen[2];
+
+    // project local pos to the upper right quadrand and
+    // compute difference to the boxDim vec
+    diff.x = abs(local.x) - gSimParamsDev.boxDim[0];
+    diff.y = abs(local.y) - gSimParamsDev.boxDim[1];
+    diff.z = abs(local.z) - gSimParamsDev.boxDim[2];
+
+    dist = max(diff.x, diff.y);
+    dist = max(dist, diff.z);
+    
+    // if the particle lies outside the box, the collision must be handled
+    float3 contact;
+    
+    if (dist > 0.0f) {
+
+        // contact point in "box space"
+        contact.x = min(gSimParamsDev.boxDim[0], 
+            max(-gSimParamsDev.boxDim[0], local.x));
+        contact.y = min(gSimParamsDev.boxDim[1],
+            max(-gSimParamsDev.boxDim[1], local.y));
+        contact.z = min(gSimParamsDev.boxDim[2],
+            max(-gSimParamsDev.boxDim[2], local.z));
+
+        // translate to worldspace
+        contact.x += gSimParamsDev.boxCen[0];
+        contact.y += gSimParamsDev.boxCen[1];
+        contact.z += gSimParamsDev.boxCen[2];
+
+        // compute penetration depth
+        depth = compute_distance(contact, pos);
+
+        // compute normal
+        nrm.x = pos.x - contact.x;
+        nrm.y = pos.y - contact.y;
+        nrm.z = pos.z - contact.z;
+        normalize(nrm);
+
+        float velNorm = norm(vel);
+        float dp    = dot_product(nrm, vel);
+        float coeff = (1 + gSimParamsDev.restitution*depth/
+            (gSimParamsDev.timeStep*velNorm))*dp;
+
+        vel.x -= coeff*nrm.x;
+        vel.y -= coeff*nrm.y;
+        vel.z -= coeff*nrm.z;
+
+        particleVertexData[idVert + VD_POS_X] = contact.x;
+        particleVertexData[idVert + VD_POS_Y] = contact.y;
+        particleVertexData[idVert + VD_POS_Z] = contact.z;
+
+        particleSimulationData[idSim + SD_VEL0_X] = vel.x;
+        particleSimulationData[idSim + SD_VEL0_Y] = vel.y;
+        particleSimulationData[idSim + SD_VEL0_Z] = vel.z;
     }
 }
+
+
+//__global__ void collision_handling(float* particleVertexData, 
+//    float* particleSimulationData)
+//{
+//    /*unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+//
+//    if (idx >= gSimParamsDev.nParticles)
+//    {
+//        return;
+//    }
+//
+//    unsigned int idVert = idx*VD_NUM_ELEMENTS;
+//    unsigned int idSim = idx*SD_NUM_ELEMENTS;
+//
+//    float3 pos;
+//    float3 vel;
+//
+//    pos.x = tex1Dfetch(gParticleVertexData, idVert + VD_POS_X);
+//    pos.y = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Y);
+//    pos.z = tex1Dfetch(gParticleVertexData, idVert + VD_POS_Z);
+//
+//    vel.x = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_X);
+//    vel.y = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Y);
+//    vel.z = tex1Dfetch(gParticleSimulationData, idSim + SD_VEL0_Z);
+//
+//    //
+//    unsigned int i,j,k;
+//    i = (unsigned int)((pos.x - gBoundaryOrigin[0])/gDx);
+//    j = (unsigned int)((pos.y - gBoundaryOrigin[1])/gDx);
+//    k = (unsigned int)((pos.z - gBoundaryOrigin[2])/gDx);
+//    unsigned int idx2 = i + gnBoundarySamples[0]*(j + gnBoundarySamples[1]*k);
+//    unsigned int nodeIdx = tex1Dfetch(gIndexMap, idx2);
+//    float dist = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_DISTANCE);
+//    
+//    float3 bNorm;
+//
+//    bNorm.x = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_X);
+//    bNorm.y = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_Y);
+//    bNorm.z = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_Z);
+//
+//    if (bNorm.y != 0.0f)
+//    {
+//        particleVertexData[idVert + VD_POS_X] -= gSimParamsDev.timeStep*vel.x;
+//        particleVertexData[idVert + VD_POS_Y] -= gSimParamsDev.timeStep*vel.y;
+//        particleVertexData[idVert + VD_POS_Z] -= gSimParamsDev.timeStep*vel.z;
+//    }*/
+//}
 
 //-----------------------------------------------------------------------------
 // definition of aux. functions (device) 
@@ -926,13 +956,12 @@ void ParticleSimulation::init()
     //
     // Init boundary handling
     //
-    BoundaryMap bmap;
-    std::cout << "loading boundary information ... " << std::endl;
-    bmap.load("icosphere.txt");
+    /*std::cout << "loading boundary information ... " << std::endl;
+    BoundaryMap bmap("icosphere.txt");
     std::cout << "finished loading" << std::endl;
    
-    unsigned int nCoords = bmap.getNumCoordinates();
-    unsigned int totalSamples = bmap.getNumTotalSamples();
+    unsigned int nCoords = bmap.GetNumCoordinates();
+    unsigned int totalSamples = bmap.GetNumTotalSamples();
 
     CUDA_SAFE_CALL( cudaMalloc(&_boundaryMapIndexMapDevPtr, 
         totalSamples*sizeof(unsigned int)) );
@@ -940,15 +969,11 @@ void ParticleSimulation::init()
     CUDA_SAFE_CALL( cudaMalloc(&_boundaryMapNodeTableDevPtr, 
         NC_NUM_ELEMENTS*nCoords*sizeof(float)) );
 
-    for (unsigned int i = 0; i < 10; i++) 
-    {
-        std::cout << bmap.getIndexMap()[i] << std::endl;
-    }
 
-    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapIndexMapDevPtr, bmap.getIndexMap(),
+    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapIndexMapDevPtr, bmap.GetIndexMap(),
         sizeof(unsigned int)*totalSamples, cudaMemcpyHostToDevice) );
 
-    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapNodeTableDevPtr, bmap.getNodeTable(),
+    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapNodeTableDevPtr, bmap.GetNodeTable(),
         NC_NUM_ELEMENTS*nCoords*sizeof(float), cudaMemcpyHostToDevice) );
 
     CUDA_SAFE_CALL ( cudaBindTexture(0, gIndexMap, _boundaryMapIndexMapDevPtr, 
@@ -958,30 +983,30 @@ void ParticleSimulation::init()
         descf, NC_NUM_ELEMENTS*nCoords*sizeof(float)) );
 
     unsigned int nSamples[3];
-    nSamples[0] = bmap.getIMax();
-    nSamples[1] = bmap.getJMax();
-    nSamples[2] = bmap.getKMax();
+    nSamples[0] = bmap.GetIMax();
+    nSamples[1] = bmap.GetJMax();
+    nSamples[2] = bmap.GetKMax();
 
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(gnBoundarySamples, nSamples, 
 		3*sizeof(unsigned int), 0, cudaMemcpyHostToDevice) );
 
     float origin[3];
-    origin[0] = bmap.getDomain().getV1().getX();
-    origin[1] = bmap.getDomain().getV1().getY();
-    origin[2] = bmap.getDomain().getV1().getZ();
+    origin[0] = bmap.GetDomain().getV1().getX();
+    origin[1] = bmap.GetDomain().getV1().getY();
+    origin[2] = bmap.GetDomain().getV1().getZ();
 
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryOrigin, origin, 
 		3*sizeof(float), 0, cudaMemcpyHostToDevice) );
 
-    float dx = bmap.getDx();
+    float dx = bmap.GetDx();
 
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(gDx, &dx, 
 		sizeof(float), 0, cudaMemcpyHostToDevice) );
 
-    float restDist = bmap.getRestDistance();
+    float restDist = bmap.GetRestDistance();
 
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(gRestDistance, &restDist, 
-		sizeof(float), 0, cudaMemcpyHostToDevice) );
+		sizeof(float), 0, cudaMemcpyHostToDevice) );*/
 
 }
 //-----------------------------------------------------------------------------

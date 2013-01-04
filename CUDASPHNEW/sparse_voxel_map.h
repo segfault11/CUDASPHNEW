@@ -55,7 +55,7 @@ public:
     bool contains(const Coordinate& c) const;
     bool get(T& val, const Coordinate& c) const;
 
-    unsigned int getNumCoordinates() const;
+    unsigned int GetNumCoordinates() const;
 
     void init(unsigned int iMax, unsigned int jMax, unsigned int kMax);
     void clear();

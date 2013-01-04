@@ -78,6 +78,9 @@
     <None Include="sparse_voxel_map.inl">
       <Filter>Utilities\math</Filter>
     </None>
+    <None Include="SpatialHashMap.inl">
+      <Filter>Utilities\math</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cgtk\src\clock.c">
@@ -178,6 +181,9 @@
     </ClInclude>
     <ClInclude Include="boundary_map.h">
       <Filter>ParticleSimulation\BoundaryMap</Filter>
+    </ClInclude>
+    <ClInclude Include="SpatialHashMap.h">
+      <Filter>Utilities\math</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

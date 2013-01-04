@@ -15,39 +15,39 @@ void compute_distance_point_triangle(float& distance, float normal[3],
 //-----------------------------------------------------------------------------
 //  BoundaryMap public methods
 //-----------------------------------------------------------------------------
-BoundaryMap::BoundaryMap()
+BoundaryMap::BoundaryMap(const std::string& filename)
 {
- //   memset(this, 0, sizeof(BoundaryMap));
+    this->Load(filename);
 }
 //-----------------------------------------------------------------------------
 BoundaryMap::BoundaryMap(const BoundaryMapConfiguration& c):
-    _dx(c.dx), _compactSupport(c.compactSupport),
-        _restDistance(c.restDistance), _state(ALLOCATED) 
+    mDx(c.dx), mCompactSupport(c.compactSupport),
+        mRestDistance(c.restDistance), mState(ALLOCATED) 
 {
-    _maxDist = std::max<float>(_restDistance, _compactSupport);    
+    mMaxDist = std::max<float>(mRestDistance, mCompactSupport);    
 }
 //-----------------------------------------------------------------------------
 BoundaryMap::~BoundaryMap() 
 {
-    saveDeleteArray<float>(&_nodeContentsTable);
-    saveDeleteArray<unsigned int>(&_indexMap);
-    _nodeContents.getNumCoordinates();   
-    std::list<Coordinate>::const_iterator& it = _nodeContents.begin(); 
-    std::list<Coordinate>::const_iterator& end = _nodeContents.end();
+    saveDeleteArray<float>(&mNodeContentsTable);
+    saveDeleteArray<unsigned int>(&mIndexMap);
+    mNodeContents.GetNumCoordinates();   
+    std::list<Coordinate>::const_iterator& it = mNodeContents.begin(); 
+    std::list<Coordinate>::const_iterator& end = mNodeContents.end();
     Coordinate c;
     
     float* nodeContent;
 
     for (; it != end; it++)
     {
-        _nodeContents.get(nodeContent, c);
+        mNodeContents.get(nodeContent, c);
         delete[] nodeContent;
     }
 }
 //-----------------------------------------------------------------------------
-void BoundaryMap::addCanvas(const TriangleMesh& mesh)
+void BoundaryMap::AddCanvas(const TriangleMesh& mesh)
 {
-    if (!(_state == ALLOCATED || _state == GENERATED))
+    if (!(mState == ALLOCATED || mState == GENERATED))
     {
         return;
     }
@@ -60,97 +60,96 @@ void BoundaryMap::addCanvas(const TriangleMesh& mesh)
 
     Vector3f diff;
     Vector3f::minus(v2, v1, diff);
-    diff.scale(1.0f/_dx);
+    diff.scale(1.0f/mDx);
     diff.ceil();
 
-    // save number of grid samples in each direction
-    _iMax = static_cast<unsigned int>(diff.getX()) + 1;
-    _jMax = static_cast<unsigned int>(diff.getY()) + 1;
-    _kMax = static_cast<unsigned int>(diff.getZ()) + 1;
-    _totalSamples = _iMax*_jMax*_kMax;
+    // Save number of grid samples in each direction
+    mIMax = static_cast<unsigned int>(diff.getX()) + 1;
+    mJMax = static_cast<unsigned int>(diff.getY()) + 1;
+    mKMax = static_cast<unsigned int>(diff.getZ()) + 1;
+    mTotalSamples = mIMax*mJMax*mKMax;
 
     // adjust v2 to makes sure the grid fully contains the canvas
-    diff.scale(_dx);
+    diff.scale(mDx);
 
     v2 = v1;
     v2.add(diff);
 
     // set bounding box
-    _domain = Rectangle3f(v1, v2);
+    mDomain = Rectangle3f(v1, v2);
 
     //
     // (re)init signed distance field
     //
-    _nodeContents.clear();
-    _nodeContents.init(_iMax, _jMax, _kMax);
-    this->dump();
+    mNodeContents.clear();
+    mNodeContents.init(mIMax, mJMax, mKMax);
+    this->Dump();
 
     //
     //  compute signed distance field
     //
-    this->computeSignedDistanceField(_nodeContents, mesh);
-
-    _state = INITIALIZING;
+    this->computeSignedDistanceField(mNodeContents, mesh);
+    mState = INITIALIZING;
 }
 //-----------------------------------------------------------------------------
-void BoundaryMap::generate()
+void BoundaryMap::Generate()
 {
 }
 //-----------------------------------------------------------------------------
-void BoundaryMap::dump() const
+void BoundaryMap::Dump() const
 {
     std::cout << "Dumping Information about Boundary Map Object ... " 
         << std::endl;
-    std::cout << "imax: " << _iMax << std::endl;
-    std::cout << "jmax: " << _jMax << std::endl;
-    std::cout << "kmax: " << _kMax << std::endl;
-    std::cout << "totalSamples: " << _totalSamples << std::endl;
-    std::cout << "Size Index Map: " << _totalSamples*4/(1024*1024) 
+    std::cout << "imax: " << mIMax << std::endl;
+    std::cout << "jmax: " << mJMax << std::endl;
+    std::cout << "kmax: " << mKMax << std::endl;
+    std::cout << "totalSamples: " << mTotalSamples << std::endl;
+    std::cout << "Size Index Map: " << mTotalSamples*4/(1024*1024) 
         << " [Mb]"<< std::endl;
     std::cout << "" << std::endl;
 }
 //-----------------------------------------------------------------------------
-void BoundaryMap::saveSlice(const std::string& filename) const
+void BoundaryMap::SaveSlice(const std::string& filename) const
 {
-    PortablePixmap p(_iMax, _jMax, 255);
-    unsigned int k = _kMax/2;
+    PortablePixmap p(mIMax, mJMax, 255);
+    unsigned int k = mKMax/2;
     float* nodeContent;
 
-    /*for (unsigned int i = 0; i < _iMax; i++)
+    /*for (unsigned int i = 0; i < mIMax; i++)
     {
-        for (unsigned int j = 0; j < _jMax; j++)
+        for (unsigned int j = 0; j < mJMax; j++)
         {
-            if (_nodeContents.contains(Coordinate(i, j, k)))
+            if (mNodeContents.contains(Coordinate(i, j, k)))
             {
                 float dist;
-                _nodeContents.get(nodeContent, Coordinate(i, j, k));
+                mNodeContents.get(nodeContent, Coordinate(i, j, k));
                 dist = nodeContent[NC_DISTANCE];
 
                 if (dist <= 0)
                 {
-                    p.setJET(i, j, std::abs(dist)/_maxDist);
+                    p.setJET(i, j, std::abs(dist)/mMaxDist);
                 }
             }
         }
     }*/
     unsigned int idx;
 
-    for (unsigned int i = 0; i < _iMax; i++)
+    for (unsigned int i = 0; i < mIMax; i++)
     {
-        for (unsigned int j = 0; j < _jMax; j++)
+        for (unsigned int j = 0; j < mJMax; j++)
         {
-            idx = i + _iMax*(j + _jMax*k);
+            idx = i + mIMax*(j + mJMax*k);
 
-            if (_indexMap[idx] != 0)
+            if (mIndexMap[idx] != 0)
             {
                 float dist;
-                dist = _nodeContentsTable[NC_NUM_ELEMENTS*_indexMap[idx] 
+                dist = mNodeContentsTable[NC_NUM_ELEMENTS*mIndexMap[idx] 
                     + NC_DISTANCE];
                 //dist = nodeContent[NC_DISTANCE];
 
                 if (dist <= 0)
                 {
-                    p.setJET(i, j, std::abs(dist)/_maxDist);
+                    p.setJET(i, j, std::abs(dist)/mMaxDist);
                 }
             }
         }
@@ -159,70 +158,81 @@ void BoundaryMap::saveSlice(const std::string& filename) const
     p.save(filename);
 }
 //-----------------------------------------------------------------------------
-void BoundaryMap::save(const std::string& filename) const
+void BoundaryMap::Save (const std::string& filename) const
 {
-    std::ofstream file;
-    
-    file.open(filename);
-
-    file << _restDistance << std::endl;
-    file << _compactSupport << std::endl;
-    file << _maxDist << std::endl;
-    file << _dx << std::endl;
-    file << _domain.getV1().getX() << std::endl;
-    file << _domain.getV1().getY() << std::endl;
-    file << _domain.getV1().getZ() << std::endl;
-    file << _domain.getV2().getX() << std::endl;
-    file << _domain.getV2().getY() << std::endl;
-    file << _domain.getV2().getZ() << std::endl;
-    file << _iMax << std::endl;
-    file << _jMax << std::endl;
-    file << _kMax << std::endl;
-    file << _totalSamples << std::endl;
-    file << _nodeContents.getNumCoordinates() << std::endl;
-    
-    auto it = _nodeContents.begin();
-    auto end = _nodeContents.end();
-
-    unsigned int cntr = 0;
-
-    for (; it != end; it++)
-    {        
-        float* content;
-        file << (*it).i << std::endl;
-        file << (*it).j << std::endl;
-        file << (*it).k << std::endl;
-        _nodeContents.get(content, *it); 
-        
-        for (unsigned int i = 0; i < NC_NUM_ELEMENTS; i++)
-        {
-            file << content[i] << std::endl;
-        }
-        
-        if (cntr % 100000 == 0)
-        {
-            std::cout << cntr << " of " << _nodeContents.getNumCoordinates() << std::endl; 
-        }
-        
-        cntr++;
+    if (mState == ALLOCATED)
+    {
+        return;
     }
+    
+    if (mState == INITIALIZING)
+    {
+        std::ofstream file;
+    
+        file.open (filename);
+
+        file << mRestDistance << std::endl;
+        file << mCompactSupport << std::endl;
+        file << mMaxDist << std::endl;
+        file << mDx << std::endl;
+        file << mDomain.getV1().getX() << std::endl;
+        file << mDomain.getV1().getY() << std::endl;
+        file << mDomain.getV1().getZ() << std::endl;
+        file << mDomain.getV2().getX() << std::endl;
+        file << mDomain.getV2().getY() << std::endl;
+        file << mDomain.getV2().getZ() << std::endl;
+        file << mIMax << std::endl;
+        file << mJMax << std::endl;
+        file << mKMax << std::endl;
+        file << mTotalSamples << std::endl;
+        file << mNodeContents.GetNumCoordinates() << std::endl;
+        auto it = mNodeContents.begin();
+        auto end = mNodeContents.end();
+
+        unsigned int cntr = 0;
+
+        for (; it != end; it++)
+        {        
+            float* content;
+            file << (*it).i << std::endl;
+            file << (*it).j << std::endl;
+            file << (*it).k << std::endl;
+            mNodeContents.get(content, *it); 
+        
+            for (unsigned int i = 0; i < NC_NUM_ELEMENTS; i++)
+            {
+                file << content[i] << std::endl;
+            }
+        
+            if (cntr % 100000 == 0)
+            {
+                std::cout << cntr << " of " << mNodeContents.GetNumCoordinates()
+                    << std::endl; 
+            }
+        
+            cntr++;
+        }
    
 
-    file.close();
+        file.close();
+    }
+
+
 
 }
 //-----------------------------------------------------------------------------
-void BoundaryMap::load(const std::string& filename)
+void BoundaryMap::Load (const std::string& filename)
 {
+    this->Reset();
     std::ifstream file;
     file.open(filename);
-    file >> _restDistance;
-    std::cout << _restDistance << std::endl;
-    file >> _compactSupport;
-    std::cout << _compactSupport << std::endl;
-    file >> _maxDist;
-    std::cout << _maxDist << std::endl;
-    file >> _dx;
+    file >> mRestDistance;
+    std::cout << mRestDistance << std::endl;
+    file >> mCompactSupport;
+    std::cout << mCompactSupport << std::endl;
+    file >> mMaxDist;
+    std::cout << mMaxDist << std::endl;
+    file >> mDx;
     float v1[3];
     float v2[3];
     file >> v1[0];
@@ -231,99 +241,112 @@ void BoundaryMap::load(const std::string& filename)
     file >> v2[0];
     file >> v2[1];
     file >> v2[2];
-    _domain = Rectangle3f(Vector3f(v1[0], v1[1], v1[2]), 
+    mDomain = Rectangle3f(Vector3f(v1[0], v1[1], v1[2]), 
         Vector3f(v2[0], v2[1], v2[2]));
-    file >> _iMax;
-    file >> _jMax;
-    file >> _kMax;
-    file >> _totalSamples;
-    file >> _nCoordinates;
-    _indexMap = new unsigned int[_totalSamples];
-    _nodeContentsTable = new float[(_nCoordinates + 1)*NC_NUM_ELEMENTS];
-    _nodeContentsTable[NC_DISTANCE] = _restDistance;
+    file >> mIMax;
+    file >> mJMax;
+    file >> mKMax;
+    file >> mTotalSamples;
+    file >> mNumCoordinates;
+    mIndexMap = new unsigned int[mTotalSamples];
+    mNodeContentsTable = new float[(mNumCoordinates + 1)*NC_NUM_ELEMENTS];
+    mNodeContentsTable[NC_DISTANCE] = mRestDistance;
+    mNodeContentsTable[NC_NORMAL_X] = 0.0f;
+    mNodeContentsTable[NC_NORMAL_Y] = 0.0f;
+    mNodeContentsTable[NC_NORMAL_Z] = 0.0f;
 
-    for (unsigned int i = 0; i < _totalSamples; i++)
+
+    for (unsigned int i = 0; i < mTotalSamples; i++)
     {
-        _indexMap[i] = 0;
+        mIndexMap[i] = 0;
     }
 
     unsigned int coord[3];
     unsigned int idx;
     float content;
     
-    for (unsigned int i = 0; i < _nCoordinates; i++)
+    for (unsigned int i = 0; i < mNumCoordinates; i++)
     {
         file >> coord[0];
         file >> coord[1];
         file >> coord[2];
-        idx = coord[0] + _iMax*(coord[1] + _jMax*coord[2]);
-        _indexMap[idx] = i + 1;
+        idx = coord[0] + mIMax*(coord[1] + mJMax*coord[2]);
+        mIndexMap[idx] = i + 1;
 
         for (unsigned int j = 0; j < NC_NUM_ELEMENTS; j++)
         {
             file >> content;
-            _nodeContentsTable[(i + 1)*NC_NUM_ELEMENTS + j] = content;
+            mNodeContentsTable[(i + 1)*NC_NUM_ELEMENTS + j] = content;
         }
     }
     
-
     file.close();
 
+    mState = GENERATED;
+
 }
 //-----------------------------------------------------------------------------
-unsigned int BoundaryMap::getNumCoordinates() const
+void BoundaryMap::Reset ()
 {
-    return _nCoordinates;
+    mNodeContents.clear();
+    saveDeleteArray<unsigned int>(&mIndexMap);
+    saveDeleteArray<float>(&mNodeContentsTable);
+    mState = ALLOCATED;
 }
 //-----------------------------------------------------------------------------
-unsigned int BoundaryMap::getNumTotalSamples() const
+unsigned int BoundaryMap::GetNumCoordinates () const
 {
-    return _totalSamples;
+    return mNumCoordinates;
 }
 //-----------------------------------------------------------------------------
-const float* BoundaryMap::getNodeTable() const 
+unsigned int BoundaryMap::GetNumTotalSamples () const
 {
-    return _nodeContentsTable;
+    return mTotalSamples;
 }
 //-----------------------------------------------------------------------------
-const unsigned int* BoundaryMap::getIndexMap() const 
+const float* BoundaryMap::GetNodeTable () const 
 {
-    return _indexMap;
+    return mNodeContentsTable;
 }
 //-----------------------------------------------------------------------------
-const Rectangle3f& BoundaryMap::getDomain() const
+const unsigned int* BoundaryMap::GetIndexMap () const 
 {
-    return _domain;
+    return mIndexMap;
 }
 //-----------------------------------------------------------------------------
-unsigned int BoundaryMap::getIMax() const
+const Rectangle3f& BoundaryMap::GetDomain () const
 {
-    return _iMax;
+    return mDomain;
 }
 //-----------------------------------------------------------------------------
-unsigned int BoundaryMap::getJMax() const
+unsigned int BoundaryMap::GetIMax () const
 {
-    return _jMax;
+    return mIMax;
 }
 //-----------------------------------------------------------------------------
-unsigned int BoundaryMap::getKMax() const
+unsigned int BoundaryMap::GetJMax () const
 {
-    return _kMax;
+    return mJMax;
 }
 //-----------------------------------------------------------------------------
-float BoundaryMap::getDx() const
+unsigned int BoundaryMap::GetKMax() const
 {
-    return _dx;
+    return mKMax;
+}
+//-----------------------------------------------------------------------------
+float BoundaryMap::GetDx() const
+{
+    return mDx;
 }
 
 //-----------------------------------------------------------------------------
-float BoundaryMap::getRestDistance() const
+float BoundaryMap::GetRestDistance() const
 {
-    return _restDistance;
+    return mRestDistance;
 }
 
 //-----------------------------------------------------------------------------
-//  BoundaryMap private methods
+//  BoundaryMap private method definitions
 //-----------------------------------------------------------------------------
 void BoundaryMap::computeSignedDistanceField(SparseVoxelMap<float*>& map, 
         const TriangleMesh& mesh)
@@ -333,9 +356,9 @@ void BoundaryMap::computeSignedDistanceField(SparseVoxelMap<float*>& map,
     const float *v1, *v2, *v3;
     unsigned int cMin[3];
     unsigned int cMax[3];
-    float x0 = _domain.getV1().getX();
-    float y0 = _domain.getV1().getY();
-    float z0 = _domain.getV1().getZ();
+    float x0 = mDomain.getV1().getX();
+    float y0 = mDomain.getV1().getY();
+    float z0 = mDomain.getV1().getZ();
     float x[3];
     float normal[3];
     float dist;
@@ -372,15 +395,15 @@ void BoundaryMap::computeSignedDistanceField(SparseVoxelMap<float*>& map,
                 for (unsigned int i = cMin[0]; i <= cMax[0]; i++) 
                 {
                     // translate coordinate to world coordinates
-                    x[0] = x0 + i*_dx;
-                    x[1] = y0 + j*_dx;
-                    x[2] = z0 + k*_dx;
+                    x[0] = x0 + i*mDx;
+                    x[1] = y0 + j*mDx;
+                    x[2] = z0 + k*mDx;
 
                     // compute distance to the triangle
                     compute_distance_point_triangle(dist, normal, x, v1, v2, v3);
 
                     // update sparse voxel map
-                    if (dist <= _maxDist)
+                    if (dist <= mMaxDist)
                     {
                         Coordinate coord(i, j, k);
 
@@ -431,24 +454,24 @@ void BoundaryMap::computeSignedDistanceField(SparseVoxelMap<float*>& map,
     PointInMeshTest test(mesh, 20);
     
     // for each coordinate in the signed distance field
-    std::list<Coordinate>::const_iterator& it = _nodeContents.begin();
-    std::list<Coordinate>::const_iterator& end = _nodeContents.end();
+    std::list<Coordinate>::const_iterator& it = mNodeContents.begin();
+    std::list<Coordinate>::const_iterator& end = mNodeContents.end();
     Coordinate c;
 
     for (; it != end; it++)
     { 
         // translate coordinate to world coordinate
         c = *it;
-        x[0] = x0 + c.i*_dx;
-        x[1] = y0 + c.j*_dx;
-        x[2] = z0 + c.k*_dx;
+        x[0] = x0 + c.i*mDx;
+        x[1] = y0 + c.j*mDx;
+        x[2] = z0 + c.k*mDx;
         
         // if [x] is inside the mesh
         if (test.isContained(Vector3f(x[0], x[1], x[2])))
         {
             // negate the distances in the signed distance field
             float* nodeContent;
-            _nodeContents.get(nodeContent, c);
+            mNodeContents.get(nodeContent, c);
             nodeContent[NC_DISTANCE] = -nodeContent[NC_DISTANCE]; 
         }
     }
@@ -462,7 +485,7 @@ void BoundaryMap::computeGridCoordinates(unsigned int cMin[3],
 {
     float min[3];
     float max[3];
-    float delta = _maxDist + _dx;
+    float delta = mMaxDist + mDx;
 
     // compute bb of triangle (t1, t2, t3)
     min[0] = std::min<float>(t1[0], std::min<float>(t2[0], t3[0]));
@@ -473,7 +496,7 @@ void BoundaryMap::computeGridCoordinates(unsigned int cMin[3],
     max[2] = std::max<float>(t1[2], std::max<float>(t2[2], t3[2]));
     
     // extend bb to include all grid point that are closer than 
-    // _maxDist to the triangle
+    // mMaxDist to the triangle
     min[0] -= delta;
     min[1] -= delta;
     min[2] -= delta;
@@ -483,20 +506,20 @@ void BoundaryMap::computeGridCoordinates(unsigned int cMin[3],
 
     // clamp bb to bb of domain to not leave the domain.
     
-    min[0] = std::max<float>(min[0], _domain.getV1().getX());
-    min[1] = std::max<float>(min[1], _domain.getV1().getY());
-    min[2] = std::max<float>(min[2], _domain.getV1().getZ());
-    max[0] = std::min<float>(max[0], _domain.getV2().getX());
-    max[1] = std::min<float>(max[1], _domain.getV2().getY());
-    max[2] = std::min<float>(max[2], _domain.getV2().getZ());
+    min[0] = std::max<float>(min[0], mDomain.getV1().getX());
+    min[1] = std::max<float>(min[1], mDomain.getV1().getY());
+    min[2] = std::max<float>(min[2], mDomain.getV1().getZ());
+    max[0] = std::min<float>(max[0], mDomain.getV2().getX());
+    max[1] = std::min<float>(max[1], mDomain.getV2().getY());
+    max[2] = std::min<float>(max[2], mDomain.getV2().getZ());
 
     // compute min and max coordinates of the bb
-    cMin[0] = static_cast<unsigned int>((min[0] - _domain.getV1().getX())/_dx);
-    cMin[1] = static_cast<unsigned int>((min[1] - _domain.getV1().getY())/_dx);
-    cMin[2] = static_cast<unsigned int>((min[2] - _domain.getV1().getZ())/_dx);
-    cMax[0] = static_cast<unsigned int>((max[0] - _domain.getV1().getX())/_dx);
-    cMax[1] = static_cast<unsigned int>((max[1] - _domain.getV1().getY())/_dx);
-    cMax[2] = static_cast<unsigned int>((max[2] - _domain.getV1().getZ())/_dx);
+    cMin[0] = static_cast<unsigned int>((min[0] - mDomain.getV1().getX())/mDx);
+    cMin[1] = static_cast<unsigned int>((min[1] - mDomain.getV1().getY())/mDx);
+    cMin[2] = static_cast<unsigned int>((min[2] - mDomain.getV1().getZ())/mDx);
+    cMax[0] = static_cast<unsigned int>((max[0] - mDomain.getV1().getX())/mDx);
+    cMax[1] = static_cast<unsigned int>((max[1] - mDomain.getV1().getY())/mDx);
+    cMax[2] = static_cast<unsigned int>((max[2] - mDomain.getV1().getZ())/mDx);
 }
 
 //-----------------------------------------------------------------------------

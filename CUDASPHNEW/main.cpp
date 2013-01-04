@@ -78,9 +78,9 @@ void init()
         gBoundaryMap = new BoundaryMap(config);
 
 
-         gBoundaryMap->addCanvas(*gObstacle);
+         gBoundaryMap->AddCanvas(*gObstacle);
          std::cout << "saving boundary map" << std::endl;
-         gBoundaryMap->save("icosphere.txt");
+         gBoundaryMap->Save("icosphere.txt");
          std::cout << "finished mitm rotz" << std::endl;
          system("pause");
   */

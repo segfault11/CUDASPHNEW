@@ -74,7 +74,7 @@ bool SparseVoxelMap<T>::get(T& val, const Coordinate& c) const
 }
 //-----------------------------------------------------------------------------
 template<class T>
-unsigned int SparseVoxelMap<T>::getNumCoordinates() const
+unsigned int SparseVoxelMap<T>::GetNumCoordinates() const
 {
     return _coordinates.size();
 }
