@@ -1,4 +1,4 @@
-﻿Build started 1/4/2013 9:32:12 AM.
+﻿Build started 1/4/2013 8:03:19 PM.
      1>Project "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\CUDASPHNEW.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\CUDASPHNEW.unsuccessfulbuild" because "AlwaysCreate" was specified.
@@ -38,4 +38,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:00.15
+Time Elapsed 00:00:00.13

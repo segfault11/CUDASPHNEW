@@ -40,6 +40,9 @@
     <Filter Include="ParticleSimulation\BoundaryMap">
       <UniqueIdentifier>{bd5cb814-4d1b-4606-80e2-9f1234f6148d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ParticleRenderer\Two Scale State Viz">
+      <UniqueIdentifier>{d905605a-d4dc-4964-b5ad-db55ad4ee18e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="particle_renderer01_f.glsl">
@@ -80,6 +83,15 @@
     </None>
     <None Include="SpatialHashMap.inl">
       <Filter>Utilities\math</Filter>
+    </None>
+    <None Include="twoscalestate_f.glsl">
+      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+    </None>
+    <None Include="twoscalestate_g.glsl">
+      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+    </None>
+    <None Include="twoscalestate_v.glsl">
+      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -125,6 +137,12 @@
     </ClCompile>
     <ClCompile Include="boundary_map.cpp">
       <Filter>ParticleSimulation\BoundaryMap</Filter>
+    </ClCompile>
+    <ClCompile Include="util.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="twoscalestate.cpp">
+      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -184,6 +202,9 @@
     </ClInclude>
     <ClInclude Include="SpatialHashMap.h">
       <Filter>Utilities\math</Filter>
+    </ClInclude>
+    <ClInclude Include="twoscalestate.h">
+      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -5,6 +5,7 @@
 #include <gl\glew.h>
 #include <string>
 #include <cuda_gl_interop.h>
+#include "util.h"
 
 /* Enumeration of the vertex data of each particle (i.e. the information which 
 ** used for rendering the particle and is stored in the OpenGL vertex buffer
@@ -120,6 +121,9 @@ public:
     **/
     float getParticleRadius() const;
 
+
+    const char* getParticleState() const;
+
     unsigned int getNumParticles() const;
 
 
@@ -160,8 +164,8 @@ private:
     ParticleSimulation(const ParticleSimulation& orig);
     ParticleSimulation& operator = (const ParticleSimulation& orig);
 
-/* Private methods */
-private:
+    /* Private methods */
+
     /* Frees all memory allocated by the object.
     */
     void freeAll();
@@ -181,15 +185,16 @@ private:
     inline void integrate();
     inline void handleCollisions();
     inline void extractSurfaceParticles();
+    inline void computeParticleState();
 
-/* Member declarations */
-private:
+    /* Member declarations */
 
     /* Host information */
     float* _particleVertexData;             /* INITIAL vertex data of the
                                             ** particles */
     float* _particleSimulationData;         /* INITIAL simulation data of 
                                             ** the particles */
+    char* _particleState;
 
     /* OpenGL interop information */
     GLuint _particleVbo;
@@ -200,6 +205,8 @@ private:
     /* CUDA (device) information */
     float* _particleVertexDataDevPtr;         
     float* _particleSimulationDataDevPtr;
+    char* _particleStateDevPtr;
+    float* _subParticleSimulationDataPtr;
     int* _particleIdListDevPtr;        
     int* _particleHashListDevPtr;       
     int* _cellStartListDevPtr;          
@@ -219,6 +226,8 @@ private:
     /* */
     float _leftI;
     float _rightI;
+
+    CudaTimer _timer;
 };
 
 #endif /*include guard of: particle_simulation.h */

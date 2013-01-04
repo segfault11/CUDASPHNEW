@@ -269,7 +269,8 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
 
     float fCoeff = tenCoeff*colLapl/colGraNorm;
 
-    if(colGraNorm > gSimParamsDev.normThresh) {
+    if(colGraNorm > gSimParamsDev.normThresh) 
+    {
         force.x -= fCoeff*colGra.x;
         force.y -= fCoeff*colGra.y;
         force.z -= fCoeff*colGra.z;
@@ -278,7 +279,7 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
 
 
     // compute contribution of boundary to the pressure force
-    unsigned int i, j, k;
+    /*unsigned int i, j, k;
     
     i = (unsigned int)((pos.x - gBoundaryOrigin[0])/gDx);
     j = (unsigned int)((pos.y - gBoundaryOrigin[1])/gDx);
@@ -302,10 +303,9 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
 
     boundaryForce.x = bCoeff*bNorm.x;
     boundaryForce.y = bCoeff*bNorm.y;
-    boundaryForce.z = bCoeff*bNorm.z;
+    boundaryForce.z = bCoeff*bNorm.z;*/
 
     
-
     // store the actual acceleration
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_X] = force.x/density;  
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Y] = force.y/density
@@ -313,7 +313,7 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Z] = force.z/density;  
 
     // find out if particle is a surface particle
-    int isSurface = 0;
+    /*int isSurface = 0;
 
     float3 dCenterMass;
     dCenterMass.x = pos.x - sumPosNeighbor.x/nNeighbors;
@@ -327,7 +327,7 @@ __global__ void compute_particle_acceleration_ifsurf(float* particleVertexData,
         isSurfaceParticle[id] = 1;
     } else {
         isSurfaceParticle[id] = 0;
-    }
+    }*/
 }
 //-----------------------------------------------------------------------------
 __global__ void integrate_euler(float* particleVertexData, 
@@ -363,7 +363,8 @@ __global__ void collision_handling(float* particleVertexData,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles) {
+    if (idx >= gSimParamsDev.nParticles)
+    {
         return;
     }
 
@@ -408,8 +409,8 @@ __global__ void collision_handling(float* particleVertexData,
     // if the particle lies outside the box, the collision must be handled
     float3 contact;
     
-    if (dist > 0.0f) {
-
+    if (dist > 0.0f)
+    {
         // contact point in "box space"
         contact.x = min(gSimParamsDev.boxDim[0], 
             max(-gSimParamsDev.boxDim[0], local.x));
@@ -433,8 +434,8 @@ __global__ void collision_handling(float* particleVertexData,
         normalize(nrm);
 
         float velNorm = norm(vel);
-        float dp    = dot_product(nrm, vel);
-        float coeff = (1 + gSimParamsDev.restitution*depth/
+        float dp     = dot_product(nrm, vel);
+        float coeff  = (1 + gSimParamsDev.restitution*depth/
             (gSimParamsDev.timeStep*velNorm))*dp;
 
         vel.x -= coeff*nrm.x;
@@ -450,7 +451,72 @@ __global__ void collision_handling(float* particleVertexData,
         particleSimulationData[idSim + SD_VEL0_Z] = vel.z;
     }
 }
+//-----------------------------------------------------------------------------
+__global__ void update_particle_state(float* particleVertexData, 
+    char* particleState)
+{
+    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
+    if (idx >= gSimParamsDev.nParticles)
+    {
+        return;
+    }
+
+    unsigned int id = tex1Dfetch(gSortedParticleIdList, idx);
+    float3 pos;
+    float3 xj;
+    float3 r;
+    float rn;
+    pos.x = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_X);
+
+    if (pos.x >= 0.2 && pos.x <= 0.5)
+    {
+        particleState[id] |= 1;
+
+        // distribute information to neigbors
+        pos.y = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_Y);
+        pos.z = tex1Dfetch(gParticleVertexData, id*VD_NUM_ELEMENTS + VD_POS_Z);
+
+        int3 c0 = compute_grid_coordinate(pos, -gSimParamsDev.compactSupport);
+        int3 c1 = compute_grid_coordinate(pos, gSimParamsDev.compactSupport);
+
+        int hash;
+        int start;
+        int end;
+        
+        for(int k = c0.z; k <= c1.z; k++)
+        {
+            for(int j = c0.y; j <= c1.y; j++)
+            {
+                for(int i = c0.x; i <= c1.x; i++)
+                {
+                    hash  = compute_hash_from_grid_coordinate(i, j, k);
+                    start = tex1Dfetch(gCellStartList, hash);
+                    end = tex1Dfetch(gCellEndList, hash);
+                    
+                    for (int u = start; u < end; u++) 
+                    {
+                        int v = tex1Dfetch(gSortedParticleIdList, u); 
+                        xj.x = tex1Dfetch(gParticleVertexData, v*VD_NUM_ELEMENTS + VD_POS_X);
+                        xj.y = tex1Dfetch(gParticleVertexData, v*VD_NUM_ELEMENTS + VD_POS_Y);
+                        xj.z = tex1Dfetch(gParticleVertexData, v*VD_NUM_ELEMENTS + VD_POS_Z);
+
+                        r.x = pos.x - xj.x;
+                        r.y = pos.y - xj.y;
+                        r.z = pos.z - xj.z;
+
+                        rn = r.x*r.x + r.y*r.y + r.z*r.z;
+
+                        if (rn <= gSimParamsDev.compactSupport*gSimParamsDev.compactSupport)
+                        {
+                            particleState[v] |= 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 //__global__ void collision_handling(float* particleVertexData, 
 //    float* particleSimulationData)
@@ -568,7 +634,8 @@ __device__ float compute_particle_density_cell(const float3 &pos,
     float r;
     float d;
 
-    for (int i = start; i < end; i++) {
+    for (int i = start; i < end; i++) 
+    {
         particleIndex = tex1Dfetch(gSortedParticleIdList, i);
 
         // compute position of the neighbor
@@ -583,7 +650,8 @@ __device__ float compute_particle_density_cell(const float3 &pos,
         
         // TODO: evaluating r*r <= h*h might save taking the sqrt in 
         // compute_distance proc. 
-        if (r <= h) {
+        if (r <= h) 
+        {
             d = h*h - r*r;
             density += gSimParamsDev.poly6*d*d*d;
         }
@@ -619,9 +687,10 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
 
     float d; // helper value to avoid arithmetic operations
 
-    for (int i = start; i < end; i++) {
+    for (int i = start; i < end; i++) 
+    {
         // get neighbor index from particle list
-        j = particleIdList[i]; 
+        j = tex1Dfetch(gSortedParticleIdList, i); 
 
         // get neighbor particle information
         xj.x = tex1Dfetch(gParticleVertexData, j*VD_NUM_ELEMENTS + VD_POS_X);
@@ -653,7 +722,8 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell(
         //         um die terme zu vereinfachen.
         pressure = rhoi*(pi/rhoi2 + pj/(rhoj*rhoj))*m;
 
-        if (rn <= h && rn > 0.0f) {
+        if (rn <= h && rn > 0.0f)
+        {
             // compute pressure force
             d = (h-rn)*(h-rn);
 
@@ -731,7 +801,7 @@ ParticleSimulation* ParticleSimulation::example01()
     ParticleSimulation* sim = new ParticleSimulation();
 
     // create box (cube) of particles
-    create_particle_box(-0.25f, -0.25f, -0.25f, 0.5f, 120000, 
+    create_particle_box(-0.65f, -0.45f, -0.25f, 0.5f, 40000, 
         &sim->_particleVertexData, &sim->_particleSimulationData,
         &sim->_parameters.nParticles);
 
@@ -772,7 +842,7 @@ ParticleSimulation* ParticleSimulation::example01()
 
     // set parameters for boundary handling
     sim->_parameters.restitution = 0.0f;
-    sim->_parameters.boxCen[0] = 0.2f;
+    sim->_parameters.boxCen[0] = 0.0f;
     sim->_parameters.boxCen[1] = 0.0f;
     sim->_parameters.boxCen[2] = 0.0f;
     sim->_parameters.boxDim[0] = 0.7f;    
@@ -852,8 +922,10 @@ void ParticleSimulation::freeAll()
 //-----------------------------------------------------------------------------
 void ParticleSimulation::init() 
 {
+    //
     // free device memory, if previously allocated 
-    
+    //
+
     // free cuda memory
     cudaSafeFree<float>(&_particleSimulationDataDevPtr);
     cudaSafeFree<int>(&_particleIdListDevPtr);
@@ -870,11 +942,13 @@ void ParticleSimulation::init()
         _particleVbo = 0;
     }
 
+    //
     // allocate cuda device memory for storing the particles' vertex and
     // simulation data.
     // Vertex data is allocated on device using OpenGL, as it is stored
     // in an vertex buffer object, which is used for rendering later.
-    
+    //
+
     // Simulation data is allocated through cuda.
     CUDA_SAFE_CALL( cudaMalloc(&_particleSimulationDataDevPtr, 
         _parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
@@ -896,7 +970,22 @@ void ParticleSimulation::init()
         _particleVbo, cudaGraphicsMapFlagsNone) );
     //cudaGLRegisterBufferObject(_particleVbo); // <- is deprecated
     
+    // allocate memory to store the state of each base particle
+    CUDA_SAFE_CALL( cudaMalloc(&_particleStateDevPtr, 
+        _parameters.nParticles*sizeof(char)) );
+
+    // allocate memory to store the state of each base particle (host)
+    _particleState = new char[_parameters.nParticles];
+
+    // alloc memory for sub particles
+    CUDA_SAFE_CALL( cudaMalloc(&_subParticleSimulationDataPtr, 
+        8*_parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
+
+
+
+    //
     // alloc & init additional aux. arrays for nearest neighbor search
+    //
     const int* dim = _parameters.gridDim; 
     unsigned int size = dim[0]*dim[1]*dim[2]*sizeof(int);
 
@@ -1020,6 +1109,7 @@ void ParticleSimulation::bind() const
 void ParticleSimulation::advance()
 {
     cgtkClockStart();
+
     this->map();
     this->computeParticleHash();
     this->sortParticleIdsByHash();
@@ -1028,6 +1118,12 @@ void ParticleSimulation::advance()
     this->computeAcceleration();
     this->integrate();
     this->handleCollisions();
+    _timer.Start();
+    this->computeParticleState();
+    _timer.Stop();
+    _timer.DumpElapsed();
+
+
     this->unmap();
     //cgtkClockDumpElapsed();
 }
@@ -1036,6 +1132,13 @@ float ParticleSimulation::getParticleRadius() const
 {
     return powf((3.0*_parameters.fluidVolume)/
         (4.0*M_PI*_parameters.nParticles), 1.0f/3.0f);
+}
+//-----------------------------------------------------------------------------
+const char* ParticleSimulation::getParticleState() const
+{
+    CUDA_SAFE_CALL( cudaMemcpy(_particleState, _particleStateDevPtr, 
+        sizeof(char)*_parameters.nParticles, cudaMemcpyDeviceToHost) );
+    return _particleState;
 }
 //-----------------------------------------------------------------------------
 unsigned int ParticleSimulation::getNumParticles() const
@@ -1124,6 +1227,15 @@ void ParticleSimulation::handleCollisions()
 {
     collision_handling <<< _blocks, _threadsPerBlock >>>
         (_particleVertexDataDevPtr, _particleSimulationDataDevPtr);
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::computeParticleState()
+{
+    CUDA_SAFE_CALL( cudaMemset(_particleStateDevPtr, 0, 
+        _parameters.nParticles*sizeof(char)) );
+    update_particle_state <<< _blocks, _threadsPerBlock >>> 
+        (_particleVertexDataDevPtr, _particleStateDevPtr);
+
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::map() 

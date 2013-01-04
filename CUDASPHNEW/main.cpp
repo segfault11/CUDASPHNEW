@@ -17,6 +17,7 @@
 #include "portable_pixmap.h"
 #include "sparse_voxel_map.h"
 #include "boundary_map.h"
+#include "twoscalestate.h"
 
 void display();
 void keyboard(unsigned char key, int x, int y);
@@ -24,7 +25,7 @@ void init();
 
 
 ParticleSimulation* gSim;
-ParticleRenderer* gRenderer;
+TwoScaleState* gRenderer;
 TriangleMesh* gObstacle;
 ObstacleRenderer* gObstacleRenderer;
 ObstacleGrid* gObstacleGrid;
@@ -62,7 +63,7 @@ void init()
         gSim->init();
         gSim->bind();
         
-        gRenderer = new ParticleRenderer(*gSim, 1280, 800);
+        gRenderer = new TwoScaleState(*gSim, 1280, 800);
         gRenderer->setCamera(0.0f, 0.4f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
           /*

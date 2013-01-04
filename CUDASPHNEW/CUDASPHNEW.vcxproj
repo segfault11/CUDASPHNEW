@@ -25,6 +25,8 @@
     <ClCompile Include="particle_renderer02.cpp" />
     <ClCompile Include="portable_pixmap.cpp" />
     <ClCompile Include="rectangle3f.cpp" />
+    <ClCompile Include="twoscalestate.cpp" />
+    <ClCompile Include="util.cpp" />
     <ClCompile Include="vector3f.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -45,6 +47,7 @@
     <ClInclude Include="obstacle_grid.h" />
     <ClInclude Include="portable_pixmap.h" />
     <ClInclude Include="rectangle3f.h" />
+    <ClInclude Include="twoscalestate.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vector3f.h" />
   </ItemGroup>
@@ -62,6 +65,9 @@
     <None Include="particle_renderer02_v.glsl" />
     <None Include="sparse_voxel_map.inl" />
     <None Include="SpatialHashMap.inl" />
+    <None Include="twoscalestate_f.glsl" />
+    <None Include="twoscalestate_g.glsl" />
+    <None Include="twoscalestate_v.glsl" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="particle_simulation.cu" />

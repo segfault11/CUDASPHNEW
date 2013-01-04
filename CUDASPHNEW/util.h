@@ -77,4 +77,26 @@ void cudaSafeFree(T** ptr )
 }
 
 
+class CudaTimer
+{
+    enum 
+    {
+        CT_TAKING_TIME,
+        CT_STOPPED
+    };
+
+public:
+    CudaTimer ();
+    ~CudaTimer ();
+    void Start ();
+    void Stop ();
+    void DumpElapsed () const;
+
+private:
+    cudaEvent_t mStart;
+    cudaEvent_t mStop;
+    float mTime;
+    int mState;
+};
+
 #endif /* end of include guard: util.h */
