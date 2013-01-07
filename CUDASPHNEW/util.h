@@ -20,7 +20,7 @@
 #define CUDA_SAFE_CALL(x) cudaSafeCall(x, __FILE__, __LINE__)
 #define THROW_EXCEPTION(x) throwException(x, __FILE__, __LINE__)
 
-inline void cudaSafeCall(cudaError_t err, const char* filename, unsigned int line)
+inline void cudaSafeCall (cudaError_t err, const char* filename, unsigned int line)
 {
     using namespace std;
 
@@ -36,7 +36,7 @@ inline void cudaSafeCall(cudaError_t err, const char* filename, unsigned int lin
     throw runtime_error(str.str());
 }
 
-inline void throwException(const char* message, const char* filename, 
+inline void throwException (const char* message, const char* filename, 
     unsigned int line)
 {
     using namespace std;
@@ -50,7 +50,7 @@ inline void throwException(const char* message, const char* filename,
 }
 
 template<typename T>
-inline void saveDelete(T** ptr)
+inline void saveDelete (T** ptr)
 {
     if (*ptr != NULL) {
         delete *ptr;
@@ -59,7 +59,7 @@ inline void saveDelete(T** ptr)
 }
 
 template<typename T>
-inline void saveDeleteArray(T** ptr)
+inline void saveDeleteArray (T** ptr)
 {
     if (*ptr != NULL) {
         delete *ptr;
@@ -68,7 +68,7 @@ inline void saveDeleteArray(T** ptr)
 }
 
 template<typename T>
-void cudaSafeFree(T** ptr ) 
+void cudaSafeFree (T** ptr ) 
 {
     if (*ptr != NULL) {
         cudaFree(*ptr);
@@ -86,11 +86,11 @@ class CudaTimer
     };
 
 public:
-    CudaTimer ();
-    ~CudaTimer ();
-    void Start ();
-    void Stop ();
-    void DumpElapsed () const;
+    CudaTimer();
+    ~CudaTimer();
+    void Start();
+    void Stop();
+    void DumpElapsed() const;
 
 private:
     cudaEvent_t mStart;

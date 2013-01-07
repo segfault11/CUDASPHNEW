@@ -22,7 +22,7 @@ void main(void)
 {
 	/* compute eye coordinates*/
 	vertexData.eye = viewMat*vec4(position, 1.0f);
-    vertexData.state = particleState;
+    vertexData.state = particleState & 3;
 
 	/* compute particle radius in clip space in x and y direction
 	** NOTE: using screen ratio might save some operations for computing the

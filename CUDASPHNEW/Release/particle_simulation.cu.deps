@@ -1164,3 +1164,5 @@ C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\list
 c:\users\arno\documents\projects\cudasphnew\cudasphnew\sparse_voxel_map.inl
 c:\users\arno\documents\projects\cudasphnew\cudasphnew\util.h
 c:\users\arno\documents\projects\cudasphnew\cudasphnew\rectangle3f.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust\scan.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include\thrust/detail/scan.inl

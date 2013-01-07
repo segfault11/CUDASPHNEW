@@ -19,6 +19,8 @@
 #include "boundary_map.h"
 #include "twoscalestate.h"
 
+using namespace std;
+
 void display();
 void keyboard(unsigned char key, int x, int y);
 void init();
@@ -44,6 +46,7 @@ int main(int argc, char* argv[])
 	//int height = glutGet(GLUT_SCREEN_HEIGHT);
     glutInitWindowSize(1280, 800);
     glutCreateWindow("SPH CUDA");
+    //glutFullScreen();
 	glewExperimental = TRUE;
 	glewInit();
     init();
@@ -110,11 +113,13 @@ void init()
 void display() 
 {
     //gObstacleRenderer->draw();
+
+    gRenderer->render();
     
     if (!gPause) {
         gSim->advance();
     }
-    gRenderer->render();
+    
     //   system("pause");
 }
 

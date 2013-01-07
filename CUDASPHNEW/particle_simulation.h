@@ -96,7 +96,7 @@ public:
     *** Allocates memory to store particle information on the device and copies
     *** the initial particle information to it.
     **/
-    void init();
+    void init ();
 
     /** @brief  Makes the Particle Simulation active. 
     ***
@@ -104,47 +104,43 @@ public:
     *** device.
     *** Should be used before if another particle simulation was active before.
     **/
-    void bind() const;
+    void bind () const;
 
     /** @brief  Updates the particle positions and attributes in time according \
     ***         to the time step and other parameters set when the constructor  \
     ***         of the particle simulation was invoked.
     **/
-    void advance();
+    void advance ();
 
     /** @brief Getter for the OpenGL vertex buffer object, that is used to 
     ***        the particles per vertex information.
     **/
-    GLuint getGLVertexBufferObject() const;
+    GLuint getGLVertexBufferObject () const;
 
     /** @brief Returns the approx. radius of a fluid particle
     **/
-    float getParticleRadius() const;
+    float getParticleRadius () const;
+    const char* getParticleState () const;
+    unsigned int getNumParticles () const;
+
+    void setNPartThresh (float val);
+    void increaseCmDistanceThresh ();
+    void decreaseCmDistanceThresh ();
+
+    void saveInfoTable (const std::string& filename);
+    void saveParticleInfo (const std::string& filename);
 
 
-    const char* getParticleState() const;
+    ~ParticleSimulation ();
 
-    unsigned int getNumParticles() const;
+    /* static factory methods */
 
-
-    void setNPartThresh(float val);
-    void increaseCmDistanceThresh();
-    void decreaseCmDistanceThresh();
-
-    void saveInfoTable(const std::string& filename);
-    void saveParticleInfo(const std::string& filename);
-
-
-    ~ParticleSimulation();
-
-/* static factory methods */
-public:
     /** @brief Creates an examples particle simulation.
     ***
     *** In this examples particles for a cube of fluid that is being dropped in 
     *** a rectangular container.
     **/
-    static ParticleSimulation* example01();
+    static ParticleSimulation* example01 ();
     
     /** @brief Creates a list, that indicates whether a particle belongs to \
     ***        the surface layer or not.
@@ -152,40 +148,45 @@ public:
     *** Creates a list, that indicates whether a particle of simulation belongs 
     *** to the surface layer or not. The list resides in host memory.
     **/
-    static int* createIsParticleSurfaceList(const ParticleSimulation* sim);
+    static int* createIsParticleSurfaceList (const ParticleSimulation* sim);
 
     /** @brief Frees an isSurfaceParticleList
     **/
-    static void freeIsParticleSurfaceList(int** isSurfaceParticleList);
+    static void freeIsParticleSurfaceList (int** isSurfaceParticleList);
 
-/* convenience locks */
 private:
-    ParticleSimulation();
-    ParticleSimulation(const ParticleSimulation& orig);
+
+    //
+    // convenience locks
+    //
+    
+    ParticleSimulation ();
+    ParticleSimulation (const ParticleSimulation& orig);
     ParticleSimulation& operator = (const ParticleSimulation& orig);
+    
+    //
+    // Private methods
+    //
 
-    /* Private methods */
+    // Frees all memory allocated by the object.
+    void freeAll ();
 
-    /* Frees all memory allocated by the object.
-    */
-    void freeAll();
+    // Map and unmap vertex buffer object to CUDA memory space.
+    inline void map ();
+    inline void unmap ();
+    inline void allocateMemoryTwoScale();
 
-    /* Map and unmap vertex buffer object to CUDA memory space.
-    */
-    inline void map();
-    inline void unmap();
-
-    /* 
-    */
-    inline void computeParticleHash();
-    inline void sortParticleIdsByHash();
-    inline void computeCellStartEndList();
-    inline void computeDensityPressure();
-    inline void computeAcceleration();
-    inline void integrate();
-    inline void handleCollisions();
-    inline void extractSurfaceParticles();
-    inline void computeParticleState();
+    inline void computeParticleHash ();
+    inline void sortParticleIdsByHash ();
+    inline void computeCellStartEndList ();
+    inline void computeDensityPressure ();
+    inline void computeAcceleration ();
+    inline void integrate ();
+    inline void handleCollisions ();
+    inline void extractSurfaceParticles ();
+    inline void computeParticleState ();
+    inline void collect ();
+    inline void initializeSubParticles ();
 
     /* Member declarations */
 
@@ -196,24 +197,50 @@ private:
                                             ** the particles */
     char* _particleState;
 
-    /* OpenGL interop information */
+    // CUDA/OpenGL interoperation information 
     GLuint _particleVbo;
+    GLuint _subParticleVbo;
     GLuint _surfaceParticlesVbo;
     cudaGraphicsResource_t _graphicsResource;
     unsigned int _nSurfaceParticles;
 
-    /* CUDA (device) information */
+    //
+    // CUDA (device) information
+    //
     float* _particleVertexDataDevPtr;         
     float* _particleSimulationDataDevPtr;
     char* _particleStateDevPtr;
-    float* _subParticleSimulationDataPtr;
-    int* _particleIdListDevPtr;        
     int* _particleHashListDevPtr;       
     int* _cellStartListDevPtr;          
     int* _cellEndListDevPtr;         
     int* _isSurfaceParticleDevPtr;
-    unsigned int _blocks;                   /* number of CUDA blocks */
-    unsigned int _threadsPerBlock;          /* number of threads per block */
+    unsigned int _threadsPerBlock;          
+    unsigned int _threadsPerBlockSplit;
+    unsigned int _threadsPerBlockBoundary;
+    unsigned int _threadsPerBlockDefault;
+    unsigned int _blocks;                   
+    unsigned int _blocksSplit;
+    unsigned int _blocksBoundary;
+    unsigned int _blocksDefault;
+
+
+    // Two scale simulation overhead
+    int _nSplitParticles;
+    int _nBoundaryParticles;
+    int _nDefaultParticles;
+    int* _particleIdListDevPtr;
+    int* _isSplitDevPtr;
+    int* _isBoundaryDevPtr;
+    int* _isDefaultDevPtr;
+    int* _splitPrefixSumDevPtr;
+    int* _boundaryPrefixSumDevPtr;
+    int* _defaultPrefixSumDevPtr;
+    int* _subParticleIdListDevPtr;
+    int* _defaultParticleIdListDevPtr;
+    int* _boundaryParticleIdListDevPtr;
+    int* _splitParticleIdListDevPtr;
+    float* _subParticleVertexDataDevPtr; 
+    float* _subParticleSimulationDataPtr;
 
     /* Host and device information */
     SimulationParameters _parameters;       /* simulation parameters */

@@ -57,7 +57,7 @@ TwoScaleState::TwoScaleState(const ParticleSimulation& sim,
     glBindBuffer(GL_ARRAY_BUFFER, _stateVBO);
     glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, 0, 0);
     glEnableVertexAttribArray(1);
-    cout << hex << glGetError() << endl;
+    //cout << hex << glGetError() << endl;
     
 }
 
