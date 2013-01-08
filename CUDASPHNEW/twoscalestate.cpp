@@ -23,12 +23,12 @@ TwoScaleState::TwoScaleState(const ParticleSimulation& sim,
     // set particle radius in world space
     GLint loc = glGetUniformLocation(_program, "particleRadius");
 	glUseProgram(_program);
-    float radius = _sim->getParticleRadius();
+    float radius = _sim->GetParticleRadius();
     glUniform1fv(loc, 1, &radius);
 
-    // init vbo for particle states
-    unsigned char* testData = new unsigned char[_sim->getNumParticles()];
-    for (unsigned int i = 0; i < _sim->getNumParticles(); i++)
+    // Init vbo for particle states
+    unsigned char* testData = new unsigned char[_sim->GetNumParticles()];
+    for (unsigned int i = 0; i < _sim->GetNumParticles(); i++)
     {
         if (i % 2 == 0)
         {
@@ -42,14 +42,14 @@ TwoScaleState::TwoScaleState(const ParticleSimulation& sim,
     
     glGenBuffers(1, &_stateVBO);
     glBindBuffer(GL_ARRAY_BUFFER, _stateVBO);
-    glBufferData(GL_ARRAY_BUFFER, _sim->getNumParticles()*sizeof(unsigned char), 
+    glBufferData(GL_ARRAY_BUFFER, _sim->GetNumParticles()*sizeof(unsigned char), 
         testData, GL_DYNAMIC_COPY);
     delete[] testData;
 
     // initialize vertex array object
     glGenVertexArrays(1, &_vertexArrayObject);
     glBindVertexArray(_vertexArrayObject);
-    glBindBuffer(GL_ARRAY_BUFFER, _sim->getGLVertexBufferObject());
+    glBindBuffer(GL_ARRAY_BUFFER, _sim->GetGLVertexBufferObject());
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
         VD_NUM_ELEMENTS*sizeof(float), 0);
     glEnableVertexAttribArray(0);
@@ -99,15 +99,15 @@ void TwoScaleState::setPerspective(float fovy, float aspect, float n,
 void TwoScaleState::render() const 
 {
     glBindBuffer(GL_ARRAY_BUFFER, _stateVBO);
-    glBufferData(GL_ARRAY_BUFFER, _sim->getNumParticles()*sizeof(unsigned char), 
-        _sim->getParticleState(), GL_DYNAMIC_COPY);
+    glBufferData(GL_ARRAY_BUFFER, _sim->GetNumParticles()*sizeof(unsigned char), 
+        _sim->GetParticleState(), GL_DYNAMIC_COPY);
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(_vertexArrayObject);
     glUseProgram(_program);
-    glDrawArrays(GL_POINTS, 0, _sim->getNumParticles());
+    glDrawArrays(GL_POINTS, 0, _sim->GetNumParticles());
     glFlush();
 	glutSwapBuffers();
 	glutPostRedisplay();

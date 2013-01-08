@@ -57,7 +57,7 @@ public:
 
     unsigned int GetNumCoordinates() const;
 
-    void init(unsigned int iMax, unsigned int jMax, unsigned int kMax);
+    void Init(unsigned int iMax, unsigned int jMax, unsigned int kMax);
     void clear();
 
 

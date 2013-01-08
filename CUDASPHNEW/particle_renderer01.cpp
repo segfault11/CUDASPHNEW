@@ -21,13 +21,13 @@ ParticleRenderer::ParticleRenderer(const ParticleSimulation& sim,
     // set particle radius in world space
     GLint loc = glGetUniformLocation(_program, "particleRadius");
 	glUseProgram(_program);
-    float radius = _sim->getParticleRadius();
+    float radius = _sim->GetParticleRadius();
     glUniform1fv(loc, 1, &radius);
 
     // initialize vertex array object
     glGenVertexArrays(1, &_vertexArrayObject);
     glBindVertexArray(_vertexArrayObject);
-    glBindBuffer(GL_ARRAY_BUFFER, _sim->getGLVertexBufferObject());
+    glBindBuffer(GL_ARRAY_BUFFER, _sim->GetGLVertexBufferObject());
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
         VD_NUM_ELEMENTS*sizeof(float), 0);
     glEnableVertexAttribArray(0);
@@ -73,7 +73,7 @@ void ParticleRenderer::render() const
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(_vertexArrayObject);
     glUseProgram(_program);
-    glDrawArrays(GL_POINTS, 0, _sim->getNumParticles());
+    glDrawArrays(GL_POINTS, 0, _sim->GetNumParticles());
     glFlush();
 	glutSwapBuffers();
 	glutPostRedisplay();

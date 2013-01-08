@@ -20,7 +20,7 @@ public:
 		float ux, float uy, float uz);
 	void setPerspective(float fovy, float aspect, float n, float f);
 public:
-    static ParticleRenderer* example01();
+    static ParticleRenderer* Example01();
 
 private:
     const ParticleSimulation* _sim;

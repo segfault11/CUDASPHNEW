@@ -118,7 +118,7 @@ void SparseVoxelMap<T>::clear()
 }
 //-----------------------------------------------------------------------------
 template<class T>
-void SparseVoxelMap<T>::init(unsigned int iMax, unsigned int jMax,
+void SparseVoxelMap<T>::Init(unsigned int iMax, unsigned int jMax,
     unsigned int kMax)
 {
     this->clear();

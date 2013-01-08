@@ -18,12 +18,13 @@
 #include "sparse_voxel_map.h"
 #include "boundary_map.h"
 #include "twoscalestate.h"
+#include <iomanip>
 
 using namespace std;
 
 void display();
 void keyboard(unsigned char key, int x, int y);
-void init();
+void Init();
 
 
 ParticleSimulation* gSim;
@@ -49,7 +50,7 @@ int main(int argc, char* argv[])
     //glutFullScreen();
 	glewExperimental = TRUE;
 	glewInit();
-    init();
+    Init();
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
 	glutMainLoop();
@@ -57,14 +58,14 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void init() 
+void Init() 
 {
     //try {
         gPause = false;
         
-        gSim = ParticleSimulation::example01();
-        gSim->init();
-        gSim->bind();
+        gSim = ParticleSimulation::Example01();
+        gSim->Init();
+        gSim->Bind();
         
         gRenderer = new TwoScaleState(*gSim, 1280, 800);
         gRenderer->setCamera(0.0f, 0.4f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
@@ -95,8 +96,8 @@ void init()
         gObstacleRenderer->setObstacle(*gObstacle);
 */
 
-     //   //gSim->saveInfoTable("tralala.txt");
-     //   //gSim->saveParticleInfo("particle_info.txt");
+     //   //gSim->SaveInfoTable("tralala.txt");
+     //   //gSim->SaveParticleInfo("particle_info.txt");
 
      //   printf("+++ finished +++\n");
 
@@ -117,7 +118,7 @@ void display()
     gRenderer->render();
     
     if (!gPause) {
-        gSim->advance();
+        gSim->Advance();
     }
     
     //   system("pause");
@@ -134,16 +135,16 @@ void keyboard(unsigned char key, int x, int y)
         }
         break;
     case 'r':
-        gSim->setNPartThresh(1.0f);
+        gSim->SetNPartThresh(1.0f);
         break;
     case 'f':
-        gSim->setNPartThresh(-1.0f);
+        gSim->SetNPartThresh(-1.0f);
         break;
     case 't':
-        gSim->increaseCmDistanceThresh();
+        gSim->IncreaseCmDistanceThresh();
         break;
     case 'g':
-        gSim->decreaseCmDistanceThresh();
+        gSim->DecreaseCmDistanceThresh();
         break;
     case 27:
 		exit(0);

@@ -79,10 +79,10 @@ void BoundaryMap::AddCanvas(const TriangleMesh& mesh)
     mDomain = Rectangle3f(v1, v2);
 
     //
-    // (re)init signed distance field
+    // (re)Init signed distance field
     //
     mNodeContents.clear();
-    mNodeContents.init(mIMax, mJMax, mKMax);
+    mNodeContents.Init(mIMax, mJMax, mKMax);
     this->Dump();
 
     //

@@ -27,7 +27,7 @@ extern "C"
 
 /*
 ** OpenGL transformation matrices (View, Perspective). All matrices are 4x4 and
-** need to be allocated in advance. OpenGL matrices are one dimensional arrays
+** need to be allocated in Advance. OpenGL matrices are one dimensional arrays
 ** with 16 (=4*4) elements. Matrices are stored in this array in column-major
 ** order:
 ** 				 _               _

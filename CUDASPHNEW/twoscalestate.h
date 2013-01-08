@@ -21,7 +21,7 @@ public:
 		float ux, float uy, float uz);
 	void setPerspective(float fovy, float aspect, float n, float f);
 public:
-    static TwoScaleState* example01();
+    static TwoScaleState* Example01();
 
 private:
     const ParticleSimulation* _sim;
