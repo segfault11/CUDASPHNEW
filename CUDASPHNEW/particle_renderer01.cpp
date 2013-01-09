@@ -27,7 +27,7 @@ ParticleRenderer::ParticleRenderer(const ParticleSimulation& sim,
     // initialize vertex array object
     glGenVertexArrays(1, &_vertexArrayObject);
     glBindVertexArray(_vertexArrayObject);
-    glBindBuffer(GL_ARRAY_BUFFER, _sim->GetGLVertexBufferObject());
+    glBindBuffer(GL_ARRAY_BUFFER, _sim->GetGLParticleVertexBufferObject());
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
         VD_NUM_ELEMENTS*sizeof(float), 0);
     glEnableVertexAttribArray(0);

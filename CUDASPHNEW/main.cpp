@@ -18,6 +18,7 @@
 #include "sparse_voxel_map.h"
 #include "boundary_map.h"
 #include "twoscalestate.h"
+#include "twoscalestatesub.h"
 #include <iomanip>
 
 using namespace std;
@@ -26,16 +27,15 @@ void display();
 void keyboard(unsigned char key, int x, int y);
 void Init();
 
-
 ParticleSimulation* gSim;
-TwoScaleState* gRenderer;
+TwoScaleStateSub* gRenderer;
 TriangleMesh* gObstacle;
 ObstacleRenderer* gObstacleRenderer;
 ObstacleGrid* gObstacleGrid;
 BoundaryMap* gBoundaryMap;
 bool gPause;
 
-int main(int argc, char* argv[]) 
+int main (int argc, char* argv[]) 
 {
     cudaGLSetGLDevice(0);    
     glutInit(&argc, argv);
@@ -67,8 +67,8 @@ void Init()
         gSim->Init();
         gSim->Bind();
         
-        gRenderer = new TwoScaleState(*gSim, 1280, 800);
-        gRenderer->setCamera(0.0f, 0.4f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+        gRenderer = new TwoScaleStateSub(*gSim, 1280, 800);
+        gRenderer->setCamera(0.0f, 0.0f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
           /*
         gObstacle = new TriangleMesh("icosphere.obj");
@@ -111,20 +111,21 @@ void Init()
     //}
 }
 
-void display() 
+void display () 
 {
     //gObstacleRenderer->draw();
 
     gRenderer->render();
     
-    if (!gPause) {
+    if (!gPause) 
+    {
         gSim->Advance();
     }
     
     //   system("pause");
 }
 
-void keyboard(unsigned char key, int x, int y)
+void keyboard (unsigned char key, int x, int y)
 {
     switch (key) {
     case 'p':

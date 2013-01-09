@@ -40,8 +40,11 @@
     <Filter Include="ParticleSimulation\BoundaryMap">
       <UniqueIdentifier>{bd5cb814-4d1b-4606-80e2-9f1234f6148d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ParticleRenderer\Two Scale State Viz">
+    <Filter Include="ParticleRenderer\Two Scale State">
       <UniqueIdentifier>{d905605a-d4dc-4964-b5ad-db55ad4ee18e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParticleRenderer\Two Scale State Sub">
+      <UniqueIdentifier>{1990c102-08e7-47f7-9257-6f50ad033b5e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -85,13 +88,22 @@
       <Filter>Utilities\math</Filter>
     </None>
     <None Include="twoscalestate_f.glsl">
-      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+      <Filter>ParticleRenderer\Two Scale State</Filter>
     </None>
     <None Include="twoscalestate_g.glsl">
-      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+      <Filter>ParticleRenderer\Two Scale State</Filter>
     </None>
     <None Include="twoscalestate_v.glsl">
-      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+      <Filter>ParticleRenderer\Two Scale State</Filter>
+    </None>
+    <None Include="twoscalestatesub_f.glsl">
+      <Filter>ParticleRenderer\Two Scale State Sub</Filter>
+    </None>
+    <None Include="twoscalestatesub_g.glsl">
+      <Filter>ParticleRenderer\Two Scale State Sub</Filter>
+    </None>
+    <None Include="twoscalestatesub_v.glsl">
+      <Filter>ParticleRenderer\Two Scale State Sub</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -142,7 +154,10 @@
       <Filter>Utilities</Filter>
     </ClCompile>
     <ClCompile Include="twoscalestate.cpp">
-      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+      <Filter>ParticleRenderer\Two Scale State</Filter>
+    </ClCompile>
+    <ClCompile Include="twoscalestatesub.cpp">
+      <Filter>ParticleRenderer\Two Scale State Sub</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -204,7 +219,10 @@
       <Filter>Utilities\math</Filter>
     </ClInclude>
     <ClInclude Include="twoscalestate.h">
-      <Filter>ParticleRenderer\Two Scale State Viz</Filter>
+      <Filter>ParticleRenderer\Two Scale State</Filter>
+    </ClInclude>
+    <ClInclude Include="twoscalestatesub.h">
+      <Filter>ParticleRenderer\Two Scale State Sub</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

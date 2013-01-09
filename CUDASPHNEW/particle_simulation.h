@@ -98,8 +98,24 @@ public:
     // Should be used before if another particle simulation was active before.
     void Bind () const;
 
+    // Executes one physics step/advances the particle system one step in time
     void Advance ();
-    GLuint GetGLVertexBufferObject () const;
+
+    // Access to the opengl vertex buffer object that stores the vertex data
+    // (as described in the [ParticleVertexDataIdx] enum) of the particles
+    GLuint GetGLParticleVertexBufferObject () const;
+
+    // Access to the opengl vertex buffer that stores the indices of the 
+    // currently not split base particles
+    GLuint GetGLParticleIndexVertexBufferObject () const;
+
+    // Access to the number of particles that are currently not split
+    unsigned int GetNumParticlesDefault () const;
+
+    GLuint GetGLSubParticleVertexBufferObject () const;
+    GLuint GetGLSubParticleIndexVertexBufferObject () const;
+    unsigned int GetNumSubParticles() const;
+
     float GetParticleRadius () const;
     float GetSubParticleRadius () const;
     const char* GetParticleState () const;
@@ -109,7 +125,6 @@ public:
     void DecreaseCmDistanceThresh ();
     void SaveInfoTable (const std::string& filename);
     void SaveParticleInfo (const std::string& filename);
-
 
     /** @brief Creates an examples particle simulation.
     ***
@@ -172,9 +187,11 @@ private:
 
     // CUDA/OpenGL interoperation information 
     GLuint mParticleVertexDataVbo;
+    GLuint mParticleIdsDefaultVbo;
     GLuint mSubParticleVertexDataVbo;
+    GLuint mSubParticleIdsVbo;
     GLuint mSurfaceParticlesVbo;
-    cudaGraphicsResource_t mGraphicsResources[2];
+    cudaGraphicsResource_t mGraphicsResources[4];
     unsigned int mNumSurfaceParticles;
 
     //
@@ -200,6 +217,7 @@ private:
     int mNumParticlesSplit;
     int mNumParticlesBoundary;
     int mNumParticlesDefault;
+    int mNumSubParticles;
     int* mParticleIdsDevPtr;
     int* _isSplitDevPtr;
     int* _isBoundaryDevPtr;
@@ -207,8 +225,8 @@ private:
     int* _splitPrefixSumDevPtr;
     int* _boundaryPrefixSumDevPtr;
     int* _defaultPrefixSumDevPtr;
-    int* _subParticleIdListDevPtr;
-    int* _defaultParticleIdListDevPtr;
+    int* mSubParticleIdsDevPtr;
+    int* mParticleIdsDefaultDevPtr;
     int* mParticleIdsBoundaryDevPtr;
     int* mParticleIdsSplitDevPtr;
     float* mSubParticleVertexDataDevPtr; 
