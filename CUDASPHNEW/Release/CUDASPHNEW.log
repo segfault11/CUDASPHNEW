@@ -1,9 +1,9 @@
-﻿Build started 1/9/2013 5:52:27 PM.
+﻿Build started 1/10/2013 9:53:56 PM.
      1>Project "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\CUDASPHNEW.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\CUDASPHNEW.unsuccessfulbuild" because "AlwaysCreate" was specified.
        AddCudaCompileDeps:
-       Skipping target "AddCudaCompileDeps" because all output files are up-to-date with respect to the input files.
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\cl.exe /E /nologo /showIncludes /TP /D__CUDACC__ /D_MBCS /IC:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" /I. /FIcuda_runtime.h /c C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu 
        AddCudaCompileDeps:
        Skipping target "AddCudaCompileDeps" because all output files are up-to-date with respect to the input files.
        AddCudaCompilePropsDeps:
@@ -11,7 +11,44 @@
        AddCudaCompilePropsDeps:
        Skipping target "AddCudaCompilePropsDeps" because all output files are up-to-date with respect to the input files.
        CudaBuild:
-       Skipping target "CudaBuild" because all output files are up-to-date with respect to the input files.
+         Compiling CUDA source file particle_simulation.cu...
+         cmd.exe /C "C:\Users\Arno\AppData\Local\Temp\cb72bdd0af5045a8b3669c920166fd8c.cmd"
+         "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"     --keep-dir "Release" -maxrregcount=0  --machine 32 --compile     -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "Release\particle_simulation.cu.obj" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu"
+         
+         C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"     --keep-dir "Release" -maxrregcount=0  --machine 32 --compile     -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "Release\particle_simulation.cu.obj" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu" 
+         particle_simulation.cu
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(634): warning : expression has no effect
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(636): warning : expression has no effect
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(638): warning : expression has no effect
+         
+         tmpxft_00000fd8_00000000-2_particle_simulation.cudafe1.gpu
+         tmpxft_00000fd8_00000000-7_particle_simulation.cudafe2.gpu
+         particle_simulation.cu
+     1>c:\users\arno\documents\projects\cudasphnew\cudasphnew\sparse_voxel_map.inl(86): warning : initial value of reference to non-const must be an lvalue
+         
+     1>c:\users\arno\documents\projects\cudasphnew\cudasphnew\sparse_voxel_map.inl(92): warning : initial value of reference to non-const must be an lvalue
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(634): warning : expression has no effect
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(636): warning : expression has no effect
+         
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(638): warning : expression has no effect
+         
+         ptxas C:/Users/Arno/AppData/Local/Temp/tmpxft_00000fd8_00000000-4_particle_simulation.ptx, line 1781; : warning : Double is not supported. Demoting to float
+         tmpxft_00000fd8_00000000-2_particle_simulation.cudafe1.cpp
+         tmpxft_00000fd8_00000000-12_particle_simulation.ii
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1027): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1031): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1032): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1033): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1034): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1035): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1036): warning C4305: '=' : truncation from 'double' to 'float'
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1401): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1697): warning C4018: '<' : signed/unsigned mismatch
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1825): warning C4244: 'initializing' : conversion from 'double' to 'unsigned int', possible loss of data
        CudaBuild:
        Skipping target "CudaBuild" because all output files are up-to-date with respect to the input files.
        ClCompile:
@@ -20,9 +57,36 @@
        ManifestResourceCompile:
          All outputs are up-to-date.
        Link:
-         All outputs are up-to-date.
+         C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Arno\Documents\Projects\CUDASPHNEW\Release\CUDASPHNEW.exe" /INCREMENTAL /NOLOGO /LIBPATH:C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\lib /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\Win32" Wm5Core.lib Wm5Mathematics.lib glew32.lib cudart.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Release\CUDASPHNEW.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"C:\Users\Arno\Documents\Projects\CUDASPHNEW\Release\CUDASPHNEW.pdb" /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Arno\Documents\Projects\CUDASPHNEW\Release\CUDASPHNEW.lib" /MACHINE:X86 Release\particle_simulation.cu.obj
+         Release\obstacle_grid.cpp.obj
+         Release\CUDASPHNEW.exe.embed.manifest.res
+         Release\boundary_map.obj
+         Release\clock.obj
+         Release\error.obj
+         Release\geometry.obj
+         Release\math.obj
+         Release\opengl.obj
+         Release\main.obj
+         Release\point_in_mesh_test.obj
+         Release\triangle_mesh.obj
+         Release\obstacle_renderer.obj
+         Release\particle_renderer01.obj
+         Release\particle_renderer02.obj
+         Release\portable_pixmap.obj
+         Release\rectangle3f.obj
+         Release\twoscalestate.obj
+         Release\twoscalestatesub.obj
+         Release\util.obj
+         Release\vector3f.obj
+     1>LINK : warning LNK4075: ignoring '/INCREMENTAL' due to '/LTCG' specification
+         Generating code
+         Finished generating code
        Manifest:
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /out:"Release\CUDASPHNEW.exe.embed.manifest" /manifest Release\CUDASPHNEW.exe.intermediate.manifest
          All outputs are up-to-date.
+       LinkEmbedManifest:
+         All outputs are up-to-date.
+         CUDASPHNEW.vcxproj -> C:\Users\Arno\Documents\Projects\CUDASPHNEW\Release\CUDASPHNEW.exe
        PostBuildEvent:
          echo copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart*.dll" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\Release\"
          copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\cudart*.dll" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\Release\"
@@ -38,4 +102,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:00.14
+Time Elapsed 00:00:20.96

@@ -335,9 +335,17 @@ __global__ void compute_particle_acceleration_ifsurf
         isSurfaceParticle[id] = 0;
     }*/
 }
+//----------------------------------------------------------------------------
+/*__global__ void compute_sub_particle_acceleration
+    (float* particleVertexData, float* particleSimulationData, 
+    int* particleIdList, int* cellStartList,
+    int* cellEndList, int* isSurfaceParticle)
+{
+
+}*/
 //-----------------------------------------------------------------------------
 __global__ void integrate_euler (float* particleVertexData, 
-    float* particleSimulationData, char* particleState)
+    float* particleSimulationData)
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -351,21 +359,62 @@ __global__ void integrate_euler (float* particleVertexData,
     float dt = gSimParamsDev.timeStep;
 
     particleSimulationData[idSim + SD_VEL0_X] += 
-        dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_X);
+        dt*particleSimulationData[idSim + SD_ACC_X];
     particleSimulationData[idSim + SD_VEL0_Y] += 
-        dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_Y);
+        dt*particleSimulationData[idSim + SD_ACC_Y];
     particleSimulationData[idSim + SD_VEL0_Z] += 
-        dt*tex1Dfetch(gParticleSimulationData, idSim + SD_ACC_Z);
+        dt*particleSimulationData[idSim + SD_ACC_Z];
 
     particleVertexData[idVert + VD_POS_X] += 
         dt*particleSimulationData[idSim + SD_VEL0_X];
     particleVertexData[idVert + VD_POS_Y] += 
         dt*particleSimulationData[idSim + SD_VEL0_Y];
     particleVertexData[idVert + VD_POS_Z] += 
-        dt*particleSimulationData[idSim + SD_VEL0_Z];
+        dt*particleSimulationData[idSim + SD_VEL0_Z];   
+}
+//-----------------------------------------------------------------------------
+__global__ void integrate_sub_particles_euler (float* subParticleVertexData, 
+    float* subParticleSimulationData, int* subParticleIds, 
+    unsigned int nSubParticles)
+{
+    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
+    if (idx >= nSubParticles)
+    {
+        return;
+    }
 
-    particleState[idx] = (particleState[idx] << 2);
+    int id = subParticleIds[idx];
+    unsigned int idVert = id*VD_NUM_ELEMENTS;
+    unsigned int idSim = id*SD_NUM_ELEMENTS;
+    float dt = gSimParamsDev.timeStep;
+    
+    
+    subParticleSimulationData[idSim + SD_VEL0_X] += 
+        dt*subParticleSimulationData[idSim + SD_ACC_X];
+    subParticleSimulationData[idSim + SD_VEL0_Y] += 
+        dt*subParticleSimulationData[idSim + SD_ACC_Y];
+    subParticleSimulationData[idSim + SD_VEL0_Z] += 
+        dt*subParticleSimulationData[idSim + SD_ACC_Z];
+    
+    subParticleVertexData[idVert + VD_POS_X] += 
+        dt*subParticleSimulationData[idSim + SD_VEL0_X];
+    subParticleVertexData[idVert + VD_POS_Y] += 
+        dt*subParticleSimulationData[idSim + SD_VEL0_Y];
+    subParticleVertexData[idVert + VD_POS_Z] += 
+        dt*subParticleSimulationData[idSim + SD_VEL0_Z];
+}
+//-----------------------------------------------------------------------------
+__global__ void shift_state (char* particleState)
+{
+        unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+        if (idx >= gSimParamsDev.nParticles)
+        {
+            return;        
+        }
+
+        particleState[idx] = (particleState[idx] << 2);
 }
 //-----------------------------------------------------------------------------
 __global__ void collision_handling (float* particleVertexData, 
@@ -535,14 +584,10 @@ __global__ void update_particle_state (float* particleVertexData,
 // changed its state from "default" to "boundary" or "split".
 // This kernel is called for particles that were split and for boundary 
 // particles. [nParticles] refers to the total number of those particles.
-// [offset] refers to the offset into the sub-particle vertex data array, it
-// is needed for the "boundary" call, as boundary sub particles are aligned
-// behind the standard split sub particles.
 __global__ void initialize_sub_particles (float* subParticleVertexData, 
     float* subParticleSimulationData, int* particleIds, 
     float* particleVertexData, float* particleSimulationData, 
-    char* particleStates, unsigned int numParticles, 
-    unsigned int offset)
+    char* particleStates, unsigned int numParticles)
 {
 #define SQRT3INV 0.577350269 // = 1/sqrt{3}
 
@@ -566,7 +611,7 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
     }
 
     unsigned int id = particleIds[idx];
-    unsigned int state = particleStates[idx];
+    char state = particleStates[id];
 
     // if the base particle was "default" previously ...
     if ((state & 12) == 0)
@@ -585,13 +630,13 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
         {
             // update velocity
             int index = (8*id + i)*SD_NUM_ELEMENTS;
-            subParticleSimulationData[index + SD_VEL0_X] = 
+            subParticleSimulationData[index + SD_VEL0_X] = 0.0f;
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X];
-            subParticleSimulationData[index + SD_VEL0_Y] = 
+            subParticleSimulationData[index + SD_VEL0_Y] = 0.1f;
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y];
-            subParticleSimulationData[index + SD_VEL0_Z] = 
+            subParticleSimulationData[index + SD_VEL0_Z] = 0.0f;
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z];
-            
+           
             // update position
             index = (8*id + i)*VD_NUM_ELEMENTS;
             subParticleVertexData[index + VD_POS_X] = pos.x + 
@@ -605,35 +650,6 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
 
 #undef SQRT3INV
 }
-//__global__ void initialize_sub_particles (float* subParticleVertexData, 
-//    float* subParticleSimulationData, int* particleIds, 
-//    float* particleVertexData, float* particleSimulationData, 
-//    char* particleStates, unsigned int numParticles, 
-//    unsigned int offset)
-//{
-//    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
-//
-//    if (idx >= numParticles)
-//    {
-//        return;
-//    }
-//
-//    unsigned int idA = particleIds[idx];
-//    float3 pos;
-//    pos.x = particleVertexData[idA*VD_NUM_ELEMENTS + VD_POS_X];
-//    pos.y = particleVertexData[idA*VD_NUM_ELEMENTS + VD_POS_Y];
-//    pos.z = particleVertexData[idA*VD_NUM_ELEMENTS + VD_POS_Z];
-//
-//    for (unsigned int i = 0; i < 8; i++) 
-//    {            
-//        // update position
-//        unsigned int idB = (8*idA + i)*VD_NUM_ELEMENTS;
-//        subParticleVertexData[idB + VD_POS_X] = pos.x; 
-//        subParticleVertexData[idB + VD_POS_Y] = pos.y; 
-//        subParticleVertexData[idB + VD_POS_Z] = pos.z; 
-//
-//    }
-//}
 //-----------------------------------------------------------------------------
 __global__ void check_split_boundary_default (char* particleState, 
         int* isSplit, int* isBoundary, int* isDefault)
@@ -970,7 +986,7 @@ ParticleSimulation::ParticleSimulation (): mParticleVertexData(NULL),
     mParticleSimulationDataDevPtr(NULL), mParticleIdsDevPtr(NULL),
     mParticleHashListDevPtr(NULL), mCellStartListDevPtr(NULL), 
     mCellEndListDevPtr(NULL), mIsSurfaceParticleDevPtr(NULL), mParticleVertexDataVbo(0),
-    mNumBlocks(0), mThreadsPerBlock(0)
+    mNumBlocks(0), mThreadsPerBlock(0), mNumSubParticles(0)
 {
     memset(&_parameters, 0, sizeof(SimulationParameters));
 }
@@ -1314,15 +1330,16 @@ void ParticleSimulation::allocateMemoryTwoScale()
     CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&mGraphicsResources[3], 
         mSubParticleIdsVbo, cudaGraphicsMapFlagsNone) );
 
+
     CUDA_SAFE_CALL( cudaMalloc(&mSubParticleSimulationDataDevPtr, 
+        8*_parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
+    CUDA_SAFE_CALL( cudaMemset(mSubParticleSimulationDataDevPtr, 0,
         8*_parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
     CUDA_SAFE_CALL( cudaMalloc(&mParticleStatesDevPtr, 
         _parameters.nParticles*sizeof(char)) );
     CUDA_SAFE_CALL( cudaMemset(mParticleStatesDevPtr, 0, 
         _parameters.nParticles*sizeof(char)) );
-
-    mParticleStates = new char[_parameters.nParticles];
-    
+    mParticleStates = new char[_parameters.nParticles];    
     CUDA_SAFE_CALL( cudaMalloc(&_isSplitDevPtr, 
         (_parameters.nParticles + 1)*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&_isBoundaryDevPtr, 
@@ -1354,21 +1371,27 @@ void ParticleSimulation::Bind () const
         sizeof(SimulationParameters)) );  
 }
 //-----------------------------------------------------------------------------
+
 void ParticleSimulation::Advance ()
 {
+
     this->map();
     this->computeParticleHash();
     this->sortParticleIdsByHash();
     this->computeCellStartEndList();
+    superTest(1, "before density/pressure");
     this->computeDensityPressure();
+    superTest(1, "before acceleration");
     this->computeAcceleration();
+    superTest(1, "before integrate");
     this->integrate();
+    superTest(1, "before integrate sub");
+    this->integrateSubParticles();
+    superTest(1, "before handle collisions");
     this->handleCollisions();
+    superTest(1, "before particle state");
     this->computeParticleState();
-    mTimer.Start();
     this->collect();
-    mTimer.Stop();
-    //mTimer.DumpElapsed();
     this->initializeSubParticles();
     this->unmap();
 }
@@ -1495,11 +1518,29 @@ void ParticleSimulation::computeAcceleration ()
         mIsSurfaceParticleDevPtr);
 }
 //-----------------------------------------------------------------------------
+void ParticleSimulation::computeAccelerationSubParticles ()
+{
+    compute_particle_acceleration_ifsurf <<< mNumBlocks, mThreadsPerBlock >>> 
+        (mParticleVertexDataDevPtr, mParticleSimulationDataDevPtr, 
+        mParticleIdsDevPtr, mCellStartListDevPtr, mCellEndListDevPtr,
+        mIsSurfaceParticleDevPtr);
+}
+//-----------------------------------------------------------------------------
 void ParticleSimulation::integrate ()
 {
     integrate_euler <<< mNumBlocks, mThreadsPerBlock >>>
-        (mParticleVertexDataDevPtr, mParticleSimulationDataDevPtr,
-        mParticleStatesDevPtr);
+        (mParticleVertexDataDevPtr, mParticleSimulationDataDevPtr);
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::integrateSubParticles ()
+{
+    if (mNumSubParticles != 0)
+    {
+        integrate_sub_particles_euler 
+            <<< mNumBlocksSubParticle, mThreadsPerBlockSubParticle >>>
+            (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr,
+            mSubParticleIdsDevPtr, mNumSubParticles);
+    }
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::handleCollisions ()
@@ -1510,6 +1551,7 @@ void ParticleSimulation::handleCollisions ()
 //-----------------------------------------------------------------------------
 void ParticleSimulation::computeParticleState ()
 {
+    shift_state <<< mNumBlocks, mThreadsPerBlock >>> (mParticleStatesDevPtr);
     update_particle_state <<< mNumBlocks, mThreadsPerBlock >>> 
         (mParticleVertexDataDevPtr, mParticleStatesDevPtr, mParticleIdsDevPtr,
         mCellStartListDevPtr, mCellEndListDevPtr);
@@ -1558,7 +1600,7 @@ void ParticleSimulation::collect ()
         _isSplitDevPtr, _isBoundaryDevPtr, _isDefaultDevPtr, 
         _splitPrefixSumDevPtr, _boundaryPrefixSumDevPtr, 
         _defaultPrefixSumDevPtr, mNumParticlesSplit);
-     
+
     mNumSubParticles = 8*(mNumParticlesSplit + mNumParticlesBoundary);
 
     // compute how many cuda blocks and how many threads a block are needed for
@@ -1569,6 +1611,8 @@ void ParticleSimulation::collect ()
         mNumBlocksBoundary, mNumParticlesBoundary);
     compute_particle_kernel_invocation_information(mThreadsPerBlockDefault, 
         mNumBlocksDefault, mNumParticlesDefault);
+    compute_particle_kernel_invocation_information(mThreadsPerBlockSubParticle,
+        mNumBlocksSubParticle, mNumSubParticles);
 }
 //-----------------------------------------------------------------------------
 //  initializes new sub particles if a parent particle has changed its state 
@@ -1581,7 +1625,7 @@ void ParticleSimulation::initializeSubParticles ()
             (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr,
             mParticleIdsSplitDevPtr, mParticleVertexDataDevPtr, 
             mParticleSimulationDataDevPtr, mParticleStatesDevPtr, 
-            mNumParticlesSplit, 0);    
+            mNumParticlesSplit);    
     }
 
     if (mNumParticlesBoundary > 0)
@@ -1590,7 +1634,7 @@ void ParticleSimulation::initializeSubParticles ()
             (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr,
             mParticleIdsBoundaryDevPtr, mParticleVertexDataDevPtr, 
             mParticleSimulationDataDevPtr, mParticleStatesDevPtr, 
-            mNumParticlesBoundary, 8*mNumParticlesSplit);
+            mNumParticlesBoundary);
     }
 }
 //-----------------------------------------------------------------------------

@@ -7,6 +7,10 @@
 #include <cuda_gl_interop.h>
 #include "util.h"
 
+
+#include <iostream>
+using namespace std;
+
 /* Enumeration of the vertex data of each particle (i.e. the information which 
 ** used for rendering the particle and is stored in the OpenGL vertex buffer
 ** object).
@@ -171,12 +175,31 @@ private:
     inline void computeCellStartEndList ();
     inline void computeDensityPressure ();
     inline void computeAcceleration ();
+    inline void computeAccelerationSubParticles (); // delete me later
     inline void integrate ();
+    inline void integrateSubParticles ();
     inline void handleCollisions ();
     inline void extractSurfaceParticles ();
     inline void computeParticleState ();
     inline void collect ();
     inline void initializeSubParticles ();
+
+
+    inline void superTest(unsigned int bla, const char* blub) const
+    {
+        int* before = new int[bla];
+        cudaMemcpy(before, mSubParticleIdsDevPtr, bla*sizeof(int), cudaMemcpyDeviceToHost);
+    
+        for (unsigned int i = 0; i < bla; i++)
+        {
+                cout << blub << " " << i << ":" << before[i] << endl;
+        }    
+
+        delete[] before;
+    };
+
+
+
 
     // Member declarations
 
@@ -208,10 +231,12 @@ private:
     unsigned int mThreadsPerBlockSplit;
     unsigned int mThreadsPerBlockBoundary;
     unsigned int mThreadsPerBlockDefault;
+    unsigned int mThreadsPerBlockSubParticle;
     unsigned int mNumBlocks;                   
     unsigned int mNumBlocksSplit;
     unsigned int mNumBlocksBoundary;
     unsigned int mNumBlocksDefault;
+    unsigned int mNumBlocksSubParticle;
 
     // Two scale simulation overhead
     int mNumParticlesSplit;
