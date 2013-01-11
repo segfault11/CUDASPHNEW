@@ -4,12 +4,12 @@ precision highp float;
 uniform mat4 projMat;
 uniform mat4 viewMat;
 uniform float particleRadius; /* in world space */
+uniform vec3 particleColor;
 
 in GeometryData 
 {
 	vec4 eye;
 	vec2 relCoord;	
-    flat int state;
 } 
 geometryData;
 
@@ -33,19 +33,6 @@ void main(void)
 
     vec4 colour;
     colour = vec4(0.0f, 0.0f, 1.0f, 1.0f);
-    
-    if (geometryData.state == 2)
-    {
-        colour = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    }
-    else if (geometryData.state == 3)
-    {
-        colour = vec4(1.0f, 1.0f, 0.0f, 1.0f);
-    }
-    else
-    {
-        colour = vec4(0.0f, 0.0f, 1.0f, 1.0f);
-    }
 
 	/* compute eye-space position of the fragment using n
 	** NOTE: for this to work eye.z should be normalized by eye.w.
@@ -59,11 +46,11 @@ void main(void)
 
 	vec4 l = vec4(0.0, 0.0, 1.0, 0.0f);
 	float diffuse = max(0.0, dot(n, l));
-    float atten = 0.5 + 0.5*diffuse;
+    float atten = 0.9 + 0.1*diffuse;
 
 	//float scale = (geometryData.energy)/(320.0f);
 	//outFragDepth = diffuse*scale*vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	outFragDepth = atten*colour;
+	outFragDepth = atten*vec4(particleColor, 1.0f);
 
 	gl_FragDepth = z;
 }

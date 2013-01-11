@@ -14,14 +14,15 @@ public:
     ~TwoScaleStateSub();
 
     void render() const;
-    void setCamera(float ex, float ey, float ez, float cx, float cy, float cz,
+    void setCamera (float ex, float ey, float ez, float cx, float cy, float cz,
 		float ux, float uy, float uz);
-	void setPerspective(float fovy, float aspect, float n, float f);
+	void setPerspective (float fovy, float aspect, float n, float f);
 public:
     static TwoScaleStateSub* Example01();
 
 private:
-    void setParticleRadius (float radius) const;
+    inline void setParticleRadius (float radius) const;
+    inline void setColor (float r, float g, float b) const;
 
     const ParticleSimulation* mSimulation;
     GLuint _stateVBO;

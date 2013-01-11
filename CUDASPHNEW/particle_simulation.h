@@ -43,13 +43,16 @@ enum ParticleSimulationDataIdx
 
 struct SimulationParameters
 {
-    /* Grid info */
+    // Definition of the computational domain ( = uniform cartesian grid) 
+    // for simulating particles and sub particles.
     float gridOrigin[3];
     float gridSpacing;
-    int gridDim[3];             /* Amount of _GRIDCELLS_(!) in each direction */
+    int gridDim[3]; // # of grid cell in each direction
+    float gridSpacingSubParticles;
+    int gridDimSubParticles[3];
 
     /* Particle System info */
-    unsigned int nParticles;    /* total amount of particles */
+    unsigned int numParticles;    /* total amount of particles */
 
     /* SPH info */
     float compactSupport;
@@ -115,10 +118,11 @@ public:
 
     // Access to the number of particles that are currently not split
     unsigned int GetNumParticlesDefault () const;
-
+    unsigned int GetNumSubParticles () const;
+    unsigned int GetNumSubParticlesRegular () const;
+    unsigned int GetNumSubParticlesBoundary () const;
     GLuint GetGLSubParticleVertexBufferObject () const;
     GLuint GetGLSubParticleIndexVertexBufferObject () const;
-    unsigned int GetNumSubParticles() const;
 
     float GetParticleRadius () const;
     float GetSubParticleRadius () const;
@@ -129,6 +133,8 @@ public:
     void DecreaseCmDistanceThresh ();
     void SaveInfoTable (const std::string& filename);
     void SaveParticleInfo (const std::string& filename);
+
+    unsigned int GetSizeMemoryGPU () const;
 
     /** @brief Creates an examples particle simulation.
     ***
@@ -171,10 +177,14 @@ private:
     inline void unmap ();
     inline void allocateMemoryTwoScale ();
     inline void computeParticleHash ();
+    inline void computeSubParticleHash ();
     inline void sortParticleIdsByHash ();
+    inline void sortSubParticleIdsByHash ();
     inline void computeCellStartEndList ();
+    inline void computeSubParticleCellStartEndList ();
     inline void computeDensityPressure ();
     inline void computeAcceleration ();
+    inline void projectQuantities ();
     inline void computeAccelerationSubParticles (); // delete me later
     inline void integrate ();
     inline void integrateSubParticles ();
@@ -183,23 +193,6 @@ private:
     inline void computeParticleState ();
     inline void collect ();
     inline void initializeSubParticles ();
-
-
-    inline void superTest(unsigned int bla, const char* blub) const
-    {
-        int* before = new int[bla];
-        cudaMemcpy(before, mSubParticleIdsDevPtr, bla*sizeof(int), cudaMemcpyDeviceToHost);
-    
-        for (unsigned int i = 0; i < bla; i++)
-        {
-                cout << blub << " " << i << ":" << before[i] << endl;
-        }    
-
-        delete[] before;
-    };
-
-
-
 
     // Member declarations
 
@@ -217,9 +210,7 @@ private:
     cudaGraphicsResource_t mGraphicsResources[4];
     unsigned int mNumSurfaceParticles;
 
-    //
-    // CUDA (device) information
-    //
+    // linear arrays stored on the device
     float* mParticleVertexDataDevPtr;         
     float* mParticleSimulationDataDevPtr;
     char* mParticleStatesDevPtr;
@@ -227,22 +218,6 @@ private:
     int* mCellStartListDevPtr;          
     int* mCellEndListDevPtr;         
     int* mIsSurfaceParticleDevPtr;
-    unsigned int mThreadsPerBlock;          
-    unsigned int mThreadsPerBlockSplit;
-    unsigned int mThreadsPerBlockBoundary;
-    unsigned int mThreadsPerBlockDefault;
-    unsigned int mThreadsPerBlockSubParticle;
-    unsigned int mNumBlocks;                   
-    unsigned int mNumBlocksSplit;
-    unsigned int mNumBlocksBoundary;
-    unsigned int mNumBlocksDefault;
-    unsigned int mNumBlocksSubParticle;
-
-    // Two scale simulation overhead
-    int mNumParticlesSplit;
-    int mNumParticlesBoundary;
-    int mNumParticlesDefault;
-    int mNumSubParticles;
     int* mParticleIdsDevPtr;
     int* _isSplitDevPtr;
     int* _isBoundaryDevPtr;
@@ -256,9 +231,30 @@ private:
     int* mParticleIdsSplitDevPtr;
     float* mSubParticleVertexDataDevPtr; 
     float* mSubParticleSimulationDataDevPtr;
+    int* mSubParticleHashsDevPtr;
+    int* mSubParticleCellStartIdsDevPtr;          
+    int* mSubParticleCellEndIdsDevPtr;     
+
+    // kernel invocation information
+    unsigned int mThreadsPerBlock;          
+    unsigned int mThreadsPerBlockSplit;
+    unsigned int mThreadsPerBlockBoundary;
+    unsigned int mThreadsPerBlockDefault;
+    unsigned int mThreadsPerBlockSubParticle;
+    unsigned int mNumBlocks;                   
+    unsigned int mNumBlocksSplit;
+    unsigned int mNumBlocksBoundary;
+    unsigned int mNumBlocksDefault;
+    unsigned int mNumBlocksSubParticle;
+    
+    // numbers of different particle types
+    int mNumParticlesSplit;
+    int mNumParticlesBoundary;
+    int mNumParticlesDefault;
+    int mNumSubParticles;
 
     /* Host and device information */
-    SimulationParameters _parameters;       /* simulation parameters */
+    SimulationParameters mParameters;       /* simulation parameters */
 
     /* boundary handling information */
     std::string _boundaryMapFileName;

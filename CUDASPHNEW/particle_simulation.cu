@@ -68,12 +68,12 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
 // CUDA Kernel definitions 
 //-----------------------------------------------------------------------------
 __global__ void compute_particle_hash (float* particleVertexData, 
-    int* particleIdList, int* particleHashList) 
+    int* particleIdList, int* particleHashList, unsigned int numParticles) 
 {
     int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    int numParticles = gSimParamsDev.nParticles;
 
-    if (idx >= numParticles) {
+    if (idx >= numParticles)
+    {
         return;
     }
 
@@ -81,9 +81,9 @@ __global__ void compute_particle_hash (float* particleVertexData,
     int x = (int)((tex1Dfetch(gParticleVertexData, idx*VD_NUM_ELEMENTS + VD_POS_X) - 
 		gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacing);
     int y = (int)((tex1Dfetch(gParticleVertexData, idx*VD_NUM_ELEMENTS + VD_POS_Y) - 
-		gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacing);
+		gSimParamsDev.gridOrigin[1])/gSimParamsDev.gridSpacing);
     int z = (int)((tex1Dfetch(gParticleVertexData, idx*VD_NUM_ELEMENTS + VD_POS_Z) - 
-		gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacing);
+		gSimParamsDev.gridOrigin[2])/gSimParamsDev.gridSpacing);
 
     // wrap outer particles to grid
     // TODO: modulo operation using "&" is faster, requires grid dims of 
@@ -99,36 +99,75 @@ __global__ void compute_particle_hash (float* particleVertexData,
     particleHashList[idx] = hash;
 }
 //-----------------------------------------------------------------------------
+__global__ void compute_sub_particle_hash (float* particleVertexData, 
+    int* particleIdList, int* particleHashList, unsigned int numParticles) 
+{
+    int idx = blockIdx.x*blockDim.x+threadIdx.x;
+
+    if (idx >= numParticles)
+    {
+        return;
+    }
+
+    int id = particleIdList[idx];
+
+    // calculate corresponding gridpoint
+    int x = (int)((particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X] - 
+        gSimParamsDev.gridOrigin[0])/gSimParamsDev.gridSpacingSubParticles);
+    int y = (int)((particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y] - 
+		gSimParamsDev.gridOrigin[1])/gSimParamsDev.gridSpacingSubParticles);
+    int z = (int)((particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z] - 
+		gSimParamsDev.gridOrigin[2])/gSimParamsDev.gridSpacingSubParticles);
+
+    // wrap outer particles to grid
+    // TODO: modulo operation using "&" is faster, requires grid dims of 
+	// power of two
+    x = x % gSimParamsDev.gridDimSubParticles[0];
+    y = y % gSimParamsDev.gridDimSubParticles[1];
+    z = z % gSimParamsDev.gridDimSubParticles[2];
+    
+    // calculate hash, i.e. grid cell id
+    int hash = gSimParamsDev.gridDimSubParticles[0]*
+        (gSimParamsDev.gridDimSubParticles[1]*z + y) + x;
+
+    particleHashList[idx] = hash;
+}
+//-----------------------------------------------------------------------------
 __global__ void compute_cell_start_end (int* particleHashList, 
-	int* cellStartList,  int* cellEndList)
+	int* cellStartList,  int* cellEndList, unsigned int numParticles)
 {
     extern __shared__ int sharedHash[];
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    int numParticles = gSimParamsDev.nParticles;
     int hash;
 
-    if (idx < numParticles) {
-        hash = tex1Dfetch(gParticleHashList, idx);
+    if (idx < numParticles) 
+    {
+        hash = particleHashList[idx];
         sharedHash[threadIdx.x + 1] = hash;
         
-        if (idx > 0 && threadIdx.x == 0) {
-            sharedHash[0] = tex1Dfetch(gParticleHashList, idx - 1);
+        if (idx > 0 && threadIdx.x == 0) 
+        {
+            sharedHash[0] = particleHashList[idx - 1];
         }
     }
 
     __syncthreads();
 
-    if (idx < numParticles) {
-        if (idx == 0 || hash != sharedHash[threadIdx.x]) {
+    if (idx < numParticles) 
+    {
+        if (idx == 0 || hash != sharedHash[threadIdx.x])
+        {
             cellStartList[hash] = idx;
         
-            if (idx > 0) {
+            if (idx > 0) 
+            {
                 cellEndList[sharedHash[threadIdx.x]] = idx;
             }
         }
 
-        if (idx == numParticles - 1) {
+        if (idx == numParticles - 1)
+        {
             cellEndList[hash] = idx + 1;
         }
     }
@@ -141,7 +180,7 @@ __global__ void compute_particle_density_pressure (float* particleVertexData,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if(idx >= gSimParamsDev.nParticles) {
+    if(idx >= gSimParamsDev.numParticles) {
         return;
     }
 
@@ -194,7 +233,7 @@ __global__ void compute_particle_acceleration_ifsurf
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles)
+    if (idx >= gSimParamsDev.numParticles)
     {
         return;
     }
@@ -349,7 +388,7 @@ __global__ void integrate_euler (float* particleVertexData,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles)
+    if (idx >= gSimParamsDev.numParticles)
     {
         return;
     }
@@ -409,7 +448,7 @@ __global__ void shift_state (char* particleState)
 {
         unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-        if (idx >= gSimParamsDev.nParticles)
+        if (idx >= gSimParamsDev.numParticles)
         {
             return;        
         }
@@ -422,7 +461,7 @@ __global__ void collision_handling (float* particleVertexData,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles)
+    if (idx >= gSimParamsDev.numParticles)
     {
         return;
     }
@@ -517,7 +556,7 @@ __global__ void update_particle_state (float* particleVertexData,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles)
+    if (idx >= gSimParamsDev.numParticles)
     {
         return;
     }
@@ -583,7 +622,7 @@ __global__ void update_particle_state (float* particleVertexData,
 // sets the sub particle vertex & simulation data for each particle, that has
 // changed its state from "default" to "boundary" or "split".
 // This kernel is called for particles that were split and for boundary 
-// particles. [nParticles] refers to the total number of those particles.
+// particles. [numParticles] refers to the total number of those particles.
 __global__ void initialize_sub_particles (float* subParticleVertexData, 
     float* subParticleSimulationData, int* particleIds, 
     float* particleVertexData, float* particleSimulationData, 
@@ -658,7 +697,7 @@ __global__ void check_split_boundary_default (char* particleState,
 
     char state = particleState[idx] & 3;
 
-    if (idx >= gSimParamsDev.nParticles)
+    if (idx >= gSimParamsDev.numParticles)
     {
         return;
     }
@@ -685,7 +724,7 @@ __global__ void collect_ids (int* subParticleIdList, int* splitParticleIdList,
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-    if (idx >= gSimParamsDev.nParticles)
+    if (idx >= gSimParamsDev.numParticles)
     {
         return;
     }
@@ -723,7 +762,7 @@ __global__ void collect_ids (int* subParticleIdList, int* splitParticleIdList,
 //{
 //    /*unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 //
-//    if (idx >= gSimParamsDev.nParticles)
+//    if (idx >= gSimParamsDev.numParticles)
 //    {
 //        return;
 //    }
@@ -967,13 +1006,14 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
 //  forward declaration of aux. functions
 //-----------------------------------------------------------------------------
 void create_particle_box (float sx, float sy, float sz, float d, 
-    unsigned int nParticles, float** particleVD, float** particleSD,
-    unsigned int* nParticlesCreated);
+    unsigned int numParticles, float** particleVD, float** particleSD,
+    unsigned int* numParticlesCreated);
 void set_simulation_domain (float xs, float ys, float zs, float xe,
-    float ye, float ze, float gridSpacing, SimulationParameters* parameters);
+    float ye, float ze, float gridSpacing, float gridSpacingSubParticles,
+    SimulationParameters* parameters);
 void compute_particle_kernel_invocation_information 
     (unsigned int& nThreadsBlock, unsigned int& nBlocks, 
-    unsigned int nParticles);
+    unsigned int numParticles);
 
 
 //-----------------------------------------------------------------------------
@@ -988,7 +1028,7 @@ ParticleSimulation::ParticleSimulation (): mParticleVertexData(NULL),
     mCellEndListDevPtr(NULL), mIsSurfaceParticleDevPtr(NULL), mParticleVertexDataVbo(0),
     mNumBlocks(0), mThreadsPerBlock(0), mNumSubParticles(0)
 {
-    memset(&_parameters, 0, sizeof(SimulationParameters));
+    memset(&mParameters, 0, sizeof(SimulationParameters));
 }
 //-----------------------------------------------------------------------------
 ParticleSimulation::~ParticleSimulation() 
@@ -1004,7 +1044,7 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     // create box (cube) of particles
     create_particle_box(-0.65f, -0.45f, -0.25f, 0.5f, 40000, 
         &sim->mParticleVertexData, &sim->mParticleSimulationData,
-        &sim->_parameters.nParticles);
+        &sim->mParameters.numParticles);
 
     if (sim->mParticleVertexData == NULL || 
         sim->mParticleSimulationData == NULL) 
@@ -1013,51 +1053,49 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     }
 
     // set sph simulation related parameters
-    sim->_parameters.kernelParticles = 20;
-    sim->_parameters.restDensity = 998.648f;
-    sim->_parameters.particleMass = sim->_parameters.restDensity*0.5f*0.5f*0.5f/
-        static_cast<float>(sim->_parameters.nParticles);
-    sim->_parameters.gasStiffness = 3.0f;
-    sim->_parameters.dynamicViscosity = 3.0f;
-    sim->_parameters.gravity = 9.81f;
-    sim->_parameters.tensionCoefficient = 0.0728f;
-    sim->_parameters.normThresh = 15.065f;
+    sim->mParameters.kernelParticles = 20;
+    sim->mParameters.restDensity = 998.648f;
+    sim->mParameters.particleMass = sim->mParameters.restDensity*0.5f*0.5f*0.5f/
+        static_cast<float>(sim->mParameters.numParticles);
+    sim->mParameters.gasStiffness = 3.0f;
+    sim->mParameters.dynamicViscosity = 3.0f;
+    sim->mParameters.gravity = 9.81f;
+    sim->mParameters.tensionCoefficient = 0.0728f;
+    sim->mParameters.normThresh = 15.065f;
 
     // compute the kernel radius
-    float h = powf((3.0f*0.5f*0.5f*0.5f*sim->_parameters.kernelParticles)/
-        (4.0f*M_PI*sim->_parameters.nParticles), 1.0f/3.0f);
+    float h = powf((3.0f*0.5f*0.5f*0.5f*sim->mParameters.kernelParticles)/
+        (4.0f*M_PI*sim->mParameters.numParticles), 1.0f/3.0f);
 
-    sim->_parameters.compactSupport =  h;
-    sim->_parameters.poly6 =  315.0f/(64.0f*M_PI*h*h*h*h*h*h*h*h*h);
-    sim->_parameters.gradPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
-    sim->_parameters.laplPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
-    sim->_parameters.gradSpiky = -45.0f/(M_PI*h*h*h*h*h*h);
-    sim->_parameters.laplVisc  =  45.0f/(M_PI*h*h*h*h*h*h);
-    sim->_parameters.timeStep  = 0.003;
+    sim->mParameters.compactSupport =  h;
+    sim->mParameters.poly6 =  315.0f/(64.0f*M_PI*h*h*h*h*h*h*h*h*h);
+    sim->mParameters.gradPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
+    sim->mParameters.laplPoly6 = -945.0f/(32.0f*M_PI*h*h*h*h*h*h*h*h*h);
+    sim->mParameters.gradSpiky = -45.0f/(M_PI*h*h*h*h*h*h);
+    sim->mParameters.laplVisc  =  45.0f/(M_PI*h*h*h*h*h*h);
+    sim->mParameters.timeStep  = 0.003;
     
-    // set the simulation domain
-    set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, 
-        &sim->_parameters);
+    set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, h/2.0f,
+        &sim->mParameters);
 
     // set fluid volume
-    sim->_parameters.fluidVolume = 0.5f*0.5f*0.5f; 
+    sim->mParameters.fluidVolume = 0.5f*0.5f*0.5f; 
 
     // set parameters for boundary handling
-    sim->_parameters.restitution = 0.0f;
-    sim->_parameters.boxCen[0] = 0.0f;
-    sim->_parameters.boxCen[1] = 0.0f;
-    sim->_parameters.boxCen[2] = 0.0f;
-    sim->_parameters.boxDim[0] = 0.7f;    
-    sim->_parameters.boxDim[1] = 0.5f;    
-    sim->_parameters.boxDim[2] = 0.3f;    
-
+    sim->mParameters.restitution = 0.0f;
+    sim->mParameters.boxCen[0] = 0.0f;
+    sim->mParameters.boxCen[1] = 0.0f;
+    sim->mParameters.boxCen[2] = 0.0f;
+    sim->mParameters.boxDim[0] = 0.7f;    
+    sim->mParameters.boxDim[1] = 0.5f;    
+    sim->mParameters.boxDim[2] = 0.3f;    
 
     // set parameters for new boundary handling
     sim->_boundaryMapFileName = std::string("icosphere.txt");
 
     // set parameters for surface extraction
-    sim->_parameters.cmDistanceThresh = 0.5f;
-    sim->_parameters.nPartTresh = 20.0f;
+    sim->mParameters.cmDistanceThresh = 0.5f;
+    sim->mParameters.nPartTresh = 20.0f;
     sim->_leftI = 0.0f;
     sim->_rightI = 1.0f;
     //printf("h %")
@@ -1067,19 +1105,19 @@ ParticleSimulation* ParticleSimulation::Example01 ()
 int* ParticleSimulation::CreateIsParticleSurfaceList
     (const ParticleSimulation* sim)
 {
-    int* isSurfaceParticleList = new int[sim->_parameters.nParticles];
+    int* isSurfaceParticleList = new int[sim->mParameters.numParticles];
     
     CUDA_SAFE_CALL( cudaMemcpy(isSurfaceParticleList, 
         sim->mIsSurfaceParticleDevPtr,
-        sizeof(int)*sim->_parameters.nParticles, 
+        sizeof(int)*sim->mParameters.numParticles, 
         cudaMemcpyDeviceToHost) );
 
     int extr = 0;
-    for (unsigned int i = 0; i < sim->_parameters.nParticles; i++) {
+    for (unsigned int i = 0; i < sim->mParameters.numParticles; i++) {
        extr += isSurfaceParticleList[i];
     }
 
-    printf("%d of %d extracted\n", extr, sim->_parameters.nParticles);
+    printf("%d of %d extracted\n", extr, sim->mParameters.numParticles);
     
 
     return isSurfaceParticleList;
@@ -1160,12 +1198,12 @@ void ParticleSimulation::Init ()
 
     // Simulation data is allocated through cuda.
     CUDA_SAFE_CALL( cudaMalloc(&mParticleSimulationDataDevPtr, 
-        _parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
+        mParameters.numParticles*sizeof(float)*SD_NUM_ELEMENTS) );
 
     // copy initial host data to device
     CUDA_SAFE_CALL( cudaMemcpy(mParticleSimulationDataDevPtr, 
         mParticleSimulationData, 
-        _parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS,
+        mParameters.numParticles*sizeof(float)*SD_NUM_ELEMENTS,
         cudaMemcpyHostToDevice) );
     
     // Vertex data is allocated through a vertex buffer object
@@ -1173,7 +1211,7 @@ void ParticleSimulation::Init ()
     glGenBuffers(1, &mParticleVertexDataVbo);
     glBindBuffer(GL_ARRAY_BUFFER, mParticleVertexDataVbo);
     glBufferData(GL_ARRAY_BUFFER, 
-        _parameters.nParticles*VD_NUM_ELEMENTS*sizeof(float),
+        mParameters.numParticles*VD_NUM_ELEMENTS*sizeof(float),
           mParticleVertexData, GL_DYNAMIC_COPY);
     CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&mGraphicsResources[0], 
         mParticleVertexDataVbo, cudaGraphicsMapFlagsNone) );
@@ -1182,7 +1220,7 @@ void ParticleSimulation::Init ()
     //
     // alloc & Init additional aux. arrays for nearest neighbor search
     //
-    const int* dim = _parameters.gridDim; 
+    const int* dim = mParameters.gridDim; 
     unsigned int size = dim[0]*dim[1]*dim[2]*sizeof(int);
 
     CUDA_SAFE_CALL( cudaMalloc(&mCellStartListDevPtr, size) );
@@ -1193,13 +1231,13 @@ void ParticleSimulation::Init ()
     CUDA_SAFE_CALL( cudaMemset(mCellEndListDevPtr, EMPTY_CELL, size) );
      
     CUDA_SAFE_CALL( cudaMalloc(&mParticleIdsDevPtr, 
-        _parameters.nParticles*sizeof(int)) );
+        mParameters.numParticles*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&mParticleHashListDevPtr, 
-        _parameters.nParticles*sizeof(int)) );
+        mParameters.numParticles*sizeof(int)) );
 
     // alloc dev memory for surface particle extraction
     CUDA_SAFE_CALL( cudaMalloc(&mIsSurfaceParticleDevPtr, 
-        _parameters.nParticles*sizeof(int)) );
+        mParameters.numParticles*sizeof(int)) );
 
     this->allocateMemoryTwoScale();
 
@@ -1215,32 +1253,32 @@ void ParticleSimulation::Init ()
 
     CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleSimulationData, 
         mParticleSimulationDataDevPtr, descf, 
-        sizeof(float)*SD_NUM_ELEMENTS*_parameters.nParticles) );
+        sizeof(float)*SD_NUM_ELEMENTS*mParameters.numParticles) );
     this->map();
     CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleVertexData, 
         mParticleVertexDataDevPtr, descf, 
-        sizeof(float)*VD_NUM_ELEMENTS*_parameters.nParticles) );
+        sizeof(float)*VD_NUM_ELEMENTS*mParameters.numParticles) );
     this->unmap();
     CUDA_SAFE_CALL ( cudaBindTexture(0, gCellStartList, mCellStartListDevPtr, 
         desci, size) );
     CUDA_SAFE_CALL ( cudaBindTexture(0, gCellEndList, mCellEndListDevPtr, 
         desci, size) );
     CUDA_SAFE_CALL ( cudaBindTexture(0, gSortedParticleIdList, mParticleIdsDevPtr, 
-        desci, _parameters.nParticles*sizeof(int)) );
+        desci, mParameters.numParticles*sizeof(int)) );
     CUDA_SAFE_CALL ( cudaBindTexture(0, gParticleHashList, mParticleHashListDevPtr, 
-        desci, _parameters.nParticles*sizeof(int)) );
+        desci, mParameters.numParticles*sizeof(int)) );
 
     // set number of CUDA blocks and threads per blocks for each kernel 
     // invocation
     // NOTE:  - chose different values than 256 to try to get more performance
     //        - make threadsPerBlock and blocks function parameters
     compute_particle_kernel_invocation_information(mThreadsPerBlock, mNumBlocks, 
-        _parameters.nParticles);
-    //mThreadsPerBlock = _parameters.nParticles < 256 ? 
-    //    _parameters.nParticles : 256;
-    //mNumBlocks = _parameters.nParticles % mThreadsPerBlock == 0 ?
-    //    _parameters.nParticles/mThreadsPerBlock : 
-    //    _parameters.nParticles/mThreadsPerBlock + 1; 
+        mParameters.numParticles);
+    //mThreadsPerBlock = mParameters.numParticles < 256 ? 
+    //    mParameters.numParticles : 256;
+    //mNumBlocks = mParameters.numParticles % mThreadsPerBlock == 0 ?
+    //    mParameters.numParticles/mThreadsPerBlock : 
+    //    mParameters.numParticles/mThreadsPerBlock + 1; 
 
     
     //
@@ -1302,13 +1340,13 @@ void ParticleSimulation::Init ()
 //-----------------------------------------------------------------------------
 // allocates and initializes memory needed for the two scale particle 
 // simulation
-void ParticleSimulation::allocateMemoryTwoScale()
+void ParticleSimulation::allocateMemoryTwoScale ()
 {
     // create opengl vbo for storing the vertex information of the 
     // sub particles
     glGenBuffers(1, &mSubParticleVertexDataVbo);
     glBindBuffer(GL_ARRAY_BUFFER, mSubParticleVertexDataVbo);
-    glBufferData(GL_ARRAY_BUFFER, 8*_parameters.nParticles*VD_NUM_ELEMENTS*
+    glBufferData(GL_ARRAY_BUFFER, 8*mParameters.numParticles*VD_NUM_ELEMENTS*
         sizeof(float), NULL, GL_DYNAMIC_COPY);
     CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&mGraphicsResources[1], 
         mSubParticleVertexDataVbo, cudaGraphicsMapFlagsNone) );
@@ -1317,7 +1355,7 @@ void ParticleSimulation::allocateMemoryTwoScale()
     // default state
     glGenBuffers(1, &mParticleIdsDefaultVbo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mParticleIdsDefaultVbo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _parameters.nParticles*sizeof(int),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mParameters.numParticles*sizeof(int),
         NULL, GL_DYNAMIC_COPY);
     CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&mGraphicsResources[2], 
         mParticleIdsDefaultVbo, cudaGraphicsMapFlagsNone) );
@@ -1325,71 +1363,72 @@ void ParticleSimulation::allocateMemoryTwoScale()
     // create opengl vbo for storing the ids of the active sub particles 
     glGenBuffers(1, &mSubParticleIdsVbo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mSubParticleIdsVbo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _parameters.nParticles*sizeof(int)*8,
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mParameters.numParticles*sizeof(int)*8,
         NULL, GL_DYNAMIC_COPY);
     CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&mGraphicsResources[3], 
         mSubParticleIdsVbo, cudaGraphicsMapFlagsNone) );
 
-
     CUDA_SAFE_CALL( cudaMalloc(&mSubParticleSimulationDataDevPtr, 
-        8*_parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
+        8*mParameters.numParticles*sizeof(float)*SD_NUM_ELEMENTS) );
     CUDA_SAFE_CALL( cudaMemset(mSubParticleSimulationDataDevPtr, 0,
-        8*_parameters.nParticles*sizeof(float)*SD_NUM_ELEMENTS) );
+        8*mParameters.numParticles*sizeof(float)*SD_NUM_ELEMENTS) );
+    CUDA_SAFE_CALL( cudaMalloc(&mSubParticleHashsDevPtr, 
+        8*mParameters.numParticles*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&mParticleStatesDevPtr, 
-        _parameters.nParticles*sizeof(char)) );
+               mParameters.numParticles*sizeof(char)) );
     CUDA_SAFE_CALL( cudaMemset(mParticleStatesDevPtr, 0, 
-        _parameters.nParticles*sizeof(char)) );
-    mParticleStates = new char[_parameters.nParticles];    
+        mParameters.numParticles*sizeof(char)) );
+    mParticleStates = new char[mParameters.numParticles];    
     CUDA_SAFE_CALL( cudaMalloc(&_isSplitDevPtr, 
-        (_parameters.nParticles + 1)*sizeof(int)) );
+        (mParameters.numParticles + 1)*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&_isBoundaryDevPtr, 
-        (_parameters.nParticles + 1)*sizeof(int)) );
+        (mParameters.numParticles + 1)*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&_isDefaultDevPtr, 
-        (_parameters.nParticles + 1)*sizeof(int)) );
-
+        (mParameters.numParticles + 1)*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&_splitPrefixSumDevPtr, 
-        (_parameters.nParticles + 1)*sizeof(int)) );    
+        (mParameters.numParticles + 1)*sizeof(int)) );    
     CUDA_SAFE_CALL( cudaMalloc(&_boundaryPrefixSumDevPtr, 
-        (_parameters.nParticles + 1)*sizeof(int)) );    
+        (mParameters.numParticles + 1)*sizeof(int)) );    
     CUDA_SAFE_CALL( cudaMalloc(&_defaultPrefixSumDevPtr, 
-        (_parameters.nParticles + 1)*sizeof(int)) );    
-
+        (mParameters.numParticles + 1)*sizeof(int)) );    
     CUDA_SAFE_CALL( cudaMalloc(&mParticleIdsDefaultDevPtr, 
-        _parameters.nParticles*sizeof(int)) );
+        mParameters.numParticles*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&mParticleIdsBoundaryDevPtr, 
-        _parameters.nParticles*sizeof(int)) );
+        mParameters.numParticles*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMalloc(&mParticleIdsSplitDevPtr, 
-        _parameters.nParticles*sizeof(int)) );
-    //CUDA_SAFE_CALL( cudaMalloc(&mSubParticleIdsDevPtr, 
-    //    _parameters.nParticles*sizeof(int)*8) );
+        mParameters.numParticles*sizeof(int)) );
+    CUDA_SAFE_CALL( cudaMalloc(&mSubParticleCellStartIdsDevPtr, 
+        sizeof(int)*mParameters.gridDimSubParticles[0]*
+        mParameters.gridDimSubParticles[1]*
+        mParameters.gridDimSubParticles[2]) );
+    CUDA_SAFE_CALL( cudaMalloc(&mSubParticleCellEndIdsDevPtr, 
+        sizeof(int)*mParameters.gridDimSubParticles[0]*
+        mParameters.gridDimSubParticles[1]*
+        mParameters.gridDimSubParticles[2]) );
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::Bind () const 
 {
     // copy simulation parameters to constant memory on device.
-    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gSimParamsDev, (void*)&_parameters, 
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gSimParamsDev, (void*)&mParameters, 
         sizeof(SimulationParameters)) );  
 }
 //-----------------------------------------------------------------------------
 
 void ParticleSimulation::Advance ()
 {
-
     this->map();
     this->computeParticleHash();
+    this->computeSubParticleHash();
     this->sortParticleIdsByHash();
+    this->sortSubParticleIdsByHash();
     this->computeCellStartEndList();
-    superTest(1, "before density/pressure");
+    this->computeSubParticleCellStartEndList ();
     this->computeDensityPressure();
-    superTest(1, "before acceleration");
     this->computeAcceleration();
-    superTest(1, "before integrate");
     this->integrate();
-    superTest(1, "before integrate sub");
     this->integrateSubParticles();
-    superTest(1, "before handle collisions");
     this->handleCollisions();
-    superTest(1, "before particle state");
     this->computeParticleState();
     this->collect();
     this->initializeSubParticles();
@@ -1398,8 +1437,8 @@ void ParticleSimulation::Advance ()
 //-----------------------------------------------------------------------------
 float ParticleSimulation::GetParticleRadius () const
 {
-    return powf((3.0*_parameters.fluidVolume)/
-        (4.0*M_PI*_parameters.nParticles), 1.0f/3.0f);
+    return powf((3.0*mParameters.fluidVolume)/
+        (4.0*M_PI*mParameters.numParticles), 1.0f/3.0f);
 }
 //-----------------------------------------------------------------------------
 float ParticleSimulation::GetSubParticleRadius () const
@@ -1410,35 +1449,35 @@ float ParticleSimulation::GetSubParticleRadius () const
 const char* ParticleSimulation::GetParticleState () const
 {
     CUDA_SAFE_CALL( cudaMemcpy(mParticleStates, mParticleStatesDevPtr, 
-        sizeof(char)*_parameters.nParticles, cudaMemcpyDeviceToHost) );
+        sizeof(char)*mParameters.numParticles, cudaMemcpyDeviceToHost) );
     return mParticleStates;
 }
 //-----------------------------------------------------------------------------
 unsigned int ParticleSimulation::GetNumParticles () const
 {
-    return _parameters.nParticles;
+    return mParameters.numParticles;
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::SetNPartThresh (float dVal)
 {
-    _parameters.nPartTresh += dVal;
-    printf("# particle thresh %f\n", _parameters.nPartTresh);
+    mParameters.nPartTresh += dVal;
+    printf("# particle thresh %f\n", mParameters.nPartTresh);
     this->Bind();
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::DecreaseCmDistanceThresh ()
 {
-    _rightI = _parameters.cmDistanceThresh;
-    _parameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
-    printf("cmDistance = %f\n", _parameters.cmDistanceThresh);
+    _rightI = mParameters.cmDistanceThresh;
+    mParameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
+    printf("cmDistance = %f\n", mParameters.cmDistanceThresh);
     this->Bind();
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::IncreaseCmDistanceThresh ()
 {
-    _leftI = _parameters.cmDistanceThresh;
-    _parameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
-    printf("cmDistance = %f\n", _parameters.cmDistanceThresh);
+    _leftI = mParameters.cmDistanceThresh;
+    mParameters.cmDistanceThresh = 0.5f*(_rightI - _leftI);
+    printf("cmDistance = %f\n", mParameters.cmDistanceThresh);
     this->Bind();
 }
 //-----------------------------------------------------------------------------
@@ -1471,6 +1510,16 @@ unsigned int ParticleSimulation::GetNumSubParticles () const
 {
     return mNumSubParticles;
 }
+//----------------------------------------------------------------------------
+unsigned int ParticleSimulation::GetNumSubParticlesRegular () const
+{
+    return mNumParticlesSplit*8;
+}
+//----------------------------------------------------------------------------
+unsigned int ParticleSimulation::GetNumSubParticlesBoundary () const
+{
+    return mNumParticlesBoundary*8;
+}
 //-----------------------------------------------------------------------------
 // Definition of private methods
 //-----------------------------------------------------------------------------
@@ -1478,20 +1527,40 @@ void ParticleSimulation::computeParticleHash ()
 {
     compute_particle_hash <<< mNumBlocks, mThreadsPerBlock >>> 
         (mParticleVertexDataDevPtr, mParticleIdsDevPtr, 
-        mParticleHashListDevPtr);
+        mParticleHashListDevPtr, mParameters.numParticles);
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::computeSubParticleHash ()
+{
+    if (mNumSubParticles != 0)
+    {
+        compute_sub_particle_hash
+            <<< mNumBlocksSubParticle, mThreadsPerBlockSubParticle >>> 
+            (mSubParticleVertexDataDevPtr, mSubParticleIdsDevPtr, 
+            mSubParticleHashsDevPtr, mNumSubParticles);
+    }
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::sortParticleIdsByHash ()
 {
    thrust::sort_by_key(thrust::device_ptr<int>(mParticleHashListDevPtr),
         thrust::device_ptr<int>(mParticleHashListDevPtr + 
-        _parameters.nParticles),
+        mParameters.numParticles), 
         thrust::device_ptr<int>(mParticleIdsDevPtr));
 }
 //-----------------------------------------------------------------------------
+void ParticleSimulation::sortSubParticleIdsByHash ()
+{
+    thrust::sort_by_key(thrust::device_ptr<int>(mSubParticleHashsDevPtr),
+        thrust::device_ptr<int>(mSubParticleHashsDevPtr + 
+        mNumSubParticles),
+        thrust::device_ptr<int>(mSubParticleIdsDevPtr));
+}
+
+//-----------------------------------------------------------------------------
 void ParticleSimulation::computeCellStartEndList () 
 {
-    int* dim = _parameters.gridDim; 
+    int* dim = mParameters.gridDim; 
     unsigned int size = dim[0]*dim[1]*dim[2]*sizeof(int);
 
     cudaMemset(mCellStartListDevPtr, EMPTY_CELL, size);
@@ -1500,7 +1569,27 @@ void ParticleSimulation::computeCellStartEndList ()
     int sharedMemSize = sizeof(int)*(mThreadsPerBlock + 1);
     compute_cell_start_end <<< mNumBlocks, mThreadsPerBlock,  sharedMemSize>>>  
         (mParticleHashListDevPtr, mCellStartListDevPtr, 
-        mCellEndListDevPtr);
+        mCellEndListDevPtr, mParameters.numParticles);
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::computeSubParticleCellStartEndList () 
+{
+    int* dim = mParameters.gridDimSubParticles; 
+    unsigned int size = dim[0]*dim[1]*dim[2]*sizeof(int);
+
+    if (mNumSubParticles == 0)
+    {
+        return;
+    }
+
+    cudaMemset(mSubParticleCellStartIdsDevPtr, EMPTY_CELL, size);
+    cudaMemset(mSubParticleCellEndIdsDevPtr, EMPTY_CELL, size);
+    
+    int sharedMemSize = sizeof(int)*(mThreadsPerBlockSubParticle + 1);
+    compute_cell_start_end 
+        <<< mNumBlocksSubParticle, mThreadsPerBlockSubParticle, sharedMemSize>>>  
+        (mSubParticleHashsDevPtr, mSubParticleCellStartIdsDevPtr, 
+        mSubParticleCellEndIdsDevPtr, mNumSubParticles);
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::computeDensityPressure () 
@@ -1520,10 +1609,6 @@ void ParticleSimulation::computeAcceleration ()
 //-----------------------------------------------------------------------------
 void ParticleSimulation::computeAccelerationSubParticles ()
 {
-    compute_particle_acceleration_ifsurf <<< mNumBlocks, mThreadsPerBlock >>> 
-        (mParticleVertexDataDevPtr, mParticleSimulationDataDevPtr, 
-        mParticleIdsDevPtr, mCellStartListDevPtr, mCellEndListDevPtr,
-        mIsSurfaceParticleDevPtr);
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::integrate ()
@@ -1564,34 +1649,34 @@ void ParticleSimulation::computeParticleState ()
 void ParticleSimulation::collect ()
 {    
     CUDA_SAFE_CALL( cudaMemset(_isSplitDevPtr, 0, 
-        (_parameters.nParticles + 1)*sizeof(int)) );
+        (mParameters.numParticles + 1)*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMemset(_isBoundaryDevPtr, 0, 
-        (_parameters.nParticles + 1)*sizeof(int)) );
+        (mParameters.numParticles + 1)*sizeof(int)) );
     CUDA_SAFE_CALL( cudaMemset(_isDefaultDevPtr, 0, 
-        (_parameters.nParticles + 1)*sizeof(int)) );
+        (mParameters.numParticles + 1)*sizeof(int)) );
 
     check_split_boundary_default <<< mNumBlocks, mThreadsPerBlock >>> 
         (mParticleStatesDevPtr, _isSplitDevPtr, _isBoundaryDevPtr, 
         _isDefaultDevPtr);
 
     thrust::exclusive_scan(thrust::device_ptr<int>(_isSplitDevPtr),
-        thrust::device_ptr<int>(_isSplitDevPtr + _parameters.nParticles
+        thrust::device_ptr<int>(_isSplitDevPtr + mParameters.numParticles
         + 1), thrust::device_ptr<int>(_splitPrefixSumDevPtr));
     thrust::exclusive_scan(thrust::device_ptr<int>(_isBoundaryDevPtr),
-        thrust::device_ptr<int>(_isBoundaryDevPtr + _parameters.nParticles
+        thrust::device_ptr<int>(_isBoundaryDevPtr + mParameters.numParticles
         + 1), thrust::device_ptr<int>(_boundaryPrefixSumDevPtr));
     thrust::exclusive_scan(thrust::device_ptr<int>(_isDefaultDevPtr),
-        thrust::device_ptr<int>(_isDefaultDevPtr + _parameters.nParticles
+        thrust::device_ptr<int>(_isDefaultDevPtr + mParameters.numParticles
         + 1), thrust::device_ptr<int>(_defaultPrefixSumDevPtr));
 
     CUDA_SAFE_CALL( cudaMemcpy(&mNumParticlesSplit,
-        &_splitPrefixSumDevPtr[_parameters.nParticles], sizeof(int), 
+        &_splitPrefixSumDevPtr[mParameters.numParticles], sizeof(int), 
         cudaMemcpyDeviceToHost) );
     CUDA_SAFE_CALL( cudaMemcpy(&mNumParticlesBoundary,
-        &_boundaryPrefixSumDevPtr[_parameters.nParticles], sizeof(int), 
+        &_boundaryPrefixSumDevPtr[mParameters.numParticles], sizeof(int), 
         cudaMemcpyDeviceToHost) );
     CUDA_SAFE_CALL( cudaMemcpy(&mNumParticlesDefault,
-        &_defaultPrefixSumDevPtr[_parameters.nParticles], sizeof(int), 
+        &_defaultPrefixSumDevPtr[mParameters.numParticles], sizeof(int), 
         cudaMemcpyDeviceToHost) );    
 
     collect_ids <<< mNumBlocks, mThreadsPerBlock >>>
@@ -1670,11 +1755,11 @@ void ParticleSimulation::SaveInfoTable (const std::string& filename)
 
     file.open(filename);
 
-    int* pIdList = new int[_parameters.nParticles];
-    int* pHashList = new int[_parameters.nParticles];
+    int* pIdList = new int[mParameters.numParticles];
+    int* pHashList = new int[mParameters.numParticles];
 
-    int cellListSize = _parameters.gridDim[0]*_parameters.gridDim[1]*
-        _parameters.gridDim[2];
+    int cellListSize = mParameters.gridDim[0]*mParameters.gridDim[1]*
+        mParameters.gridDim[2];
 
     int* pCellStartList = new int[cellListSize];
     int* pCellEndList = new int[cellListSize];
@@ -1682,15 +1767,15 @@ void ParticleSimulation::SaveInfoTable (const std::string& filename)
     //this->map();
 
     cudaMemcpy(pHashList, mParticleHashListDevPtr, 
-        _parameters.nParticles*sizeof(int), cudaMemcpyDeviceToHost);
+        mParameters.numParticles*sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(pIdList, mParticleIdsDevPtr, 
-        _parameters.nParticles*sizeof(int), cudaMemcpyDeviceToHost);
+        mParameters.numParticles*sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(pCellStartList, mCellStartListDevPtr, 
         cellListSize*sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(pCellEndList, mCellEndListDevPtr, 
         cellListSize*sizeof(int), cudaMemcpyDeviceToHost);
     
-    file << "Number of particles " << _parameters.nParticles << endl; 
+    file << "Number of particles " << mParameters.numParticles << endl; 
     file << setw(8) << "index" << setw(12) << " id" << setw(12) << 
         " hash" << setw(12) << " start" << setw(12) << " end" << endl;
 
@@ -1698,7 +1783,7 @@ void ParticleSimulation::SaveInfoTable (const std::string& filename)
     {
         file << setw(8) << i;
 
-        if(i < _parameters.nParticles)
+        if(i < mParameters.numParticles)
         {
             file << setw(12) << pIdList[i];
             file << setw(12) << pHashList[i];
@@ -1749,16 +1834,16 @@ void ParticleSimulation::SaveParticleInfo (const std::string& filename)
     file.open(filename);
 
     float* particleVertexData = 
-        new float[VD_NUM_ELEMENTS*_parameters.nParticles]; 
+        new float[VD_NUM_ELEMENTS*mParameters.numParticles]; 
     float* particleSimulationData = 
-        new float[SD_NUM_ELEMENTS*_parameters.nParticles]; 
+        new float[SD_NUM_ELEMENTS*mParameters.numParticles]; 
 
     // copy particle information from device to host
     cudaMemcpy(particleVertexData, mParticleVertexDataDevPtr, 
-		VD_NUM_ELEMENTS*_parameters.nParticles*sizeof(float), 
+		VD_NUM_ELEMENTS*mParameters.numParticles*sizeof(float), 
 		cudaMemcpyDeviceToHost);
     cudaMemcpy(particleSimulationData, mParticleSimulationDataDevPtr, 
-		SD_NUM_ELEMENTS*_parameters.nParticles*sizeof(float), 
+		SD_NUM_ELEMENTS*mParameters.numParticles*sizeof(float), 
 		cudaMemcpyDeviceToHost);    
     
     // set max. chars for each column of the table
@@ -1775,7 +1860,7 @@ void ParticleSimulation::SaveParticleInfo (const std::string& filename)
     file << setw(columnWidth) << "Acc Z";
     file << endl;
 
-    for (unsigned int i = 0; i < _parameters.nParticles; i++) 
+    for (unsigned int i = 0; i < mParameters.numParticles; i++) 
     {
         file << setw(columnWidth) << i;
         file << setw(columnWidth) 
@@ -1806,32 +1891,41 @@ void ParticleSimulation::SaveParticleInfo (const std::string& filename)
 
     this->unmap();
 }
+//-----------------------------------------------------------------------------
+/*
+unsigned int ParticleSimulation::GetSizeMemoryGPU () const
+{
+    float size;
+    
+    size += mNumPar
 
+
+}*/
 //-----------------------------------------------------------------------------
 //  definition of aux. functions
 //-----------------------------------------------------------------------------
 // Creates a set of particles, that are aligned in a cube, given the starting
 // point of the box [sx, sy, sz] the length of the cube in each direction [d]
-// and the approximate amount of total particles [nParticles].
+// and the approximate amount of total particles [numParticles].
 //
 // Returns a pointer to the vertex data of the particles in [particleVD] and
 // a pointer to the simulation data of the particles in [particleSD] and the
 // actual amount of particles created.
 void create_particle_box (float sx, float sy, float sz, float d, 
-    unsigned int nParticles, float** particleVD, float** particleSD,
-    unsigned int* nParticlesCreated)
+    unsigned int numParticles, float** particleVD, float** particleSD,
+    unsigned int* numParticlesCreated)
 {
     // computed number of particles in each direction
-    unsigned int num = pow(static_cast<double>(nParticles), 1.0/3.0);
-    *nParticlesCreated = num*num*num;
+    unsigned int num = pow(static_cast<double>(numParticles), 1.0/3.0);
+    *numParticlesCreated = num*num*num;
 
-    *particleVD = new float[*nParticlesCreated*VD_NUM_ELEMENTS];
-    *particleSD = new float[*nParticlesCreated*SD_NUM_ELEMENTS];
+    *particleVD = new float[*numParticlesCreated*VD_NUM_ELEMENTS];
+    *particleSD = new float[*numParticlesCreated*SD_NUM_ELEMENTS];
 
     // check if new failed.
     if ((*particleSD) == NULL || (*particleSD) == NULL)
     {
-        *nParticlesCreated = 0;
+        *numParticlesCreated = 0;
         return;
     }
 
@@ -1859,14 +1953,15 @@ void create_particle_box (float sx, float sy, float sz, float d,
     
     // set other particles attributes to 0.0f
     memset((*particleSD), 0, 
-        sizeof(float)*SD_NUM_ELEMENTS*(*nParticlesCreated));
+        sizeof(float)*SD_NUM_ELEMENTS*(*numParticlesCreated));
 }
 //-----------------------------------------------------------------------------
 // Sets the simulation domain in the [parameters], based on a starting point
 // [xs, ys, zs] an ending point [xe, ye, ze] and the distance between two
 // grid points [gridSpacing].
 void set_simulation_domain (float xs, float ys, float zs, float xe,
-    float ye, float ze, float gridSpacing, SimulationParameters* parameters)
+    float ye, float ze, float gridSpacing, float gridSpacingSubParticles,
+    SimulationParameters* parameters)
 {
     parameters->gridOrigin[0] = xs;
     parameters->gridOrigin[1] = ys;
@@ -1874,21 +1969,28 @@ void set_simulation_domain (float xs, float ys, float zs, float xe,
     parameters->gridDim[0] = static_cast<int>((xe - xs)/gridSpacing + 0.5);
     parameters->gridDim[1] = static_cast<int>((ye - ys)/gridSpacing + 0.5);
     parameters->gridDim[2] = static_cast<int>((ze - zs)/gridSpacing + 0.5);
+    parameters->gridDimSubParticles[0] = 
+        static_cast<int>((xe - xs)/gridSpacingSubParticles + 0.5);
+    parameters->gridDimSubParticles[1] = 
+        static_cast<int>((ye - ys)/gridSpacingSubParticles + 0.5);
+    parameters->gridDimSubParticles[2] = 
+        static_cast<int>((ze - zs)/gridSpacingSubParticles + 0.5);
     parameters->gridSpacing = gridSpacing;
+    parameters->gridSpacingSubParticles = gridSpacingSubParticles;
 }
 //-----------------------------------------------------------------------------
 void compute_particle_kernel_invocation_information
     (unsigned int& nThreadsBlock, unsigned int& nBlocks, 
-    unsigned int nParticles)
+    unsigned int numParticles)
 {
-    if (nParticles == 0)
+    if (numParticles == 0)
     {
         nThreadsBlock = 0;
         nBlocks = 0;
         return;
     }
 
-    nThreadsBlock = nParticles > 256 ? 256 : nParticles;
-    nBlocks = nParticles % nThreadsBlock == 0 ? nParticles/nThreadsBlock : 
-        nParticles/nThreadsBlock + 1;
+    nThreadsBlock = numParticles > 256 ? 256 : numParticles;
+    nBlocks = numParticles % nThreadsBlock == 0 ? numParticles/nThreadsBlock : 
+        numParticles/nThreadsBlock + 1;
 }
