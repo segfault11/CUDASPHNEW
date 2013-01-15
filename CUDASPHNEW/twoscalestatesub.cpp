@@ -97,11 +97,11 @@ void TwoScaleStateSub::render () const
         GL_UNSIGNED_INT, 0);
 
     // draw regular sub-particles
-    this->setColor(0.9f, 0.9f, 0.0f);
+   /* this->setColor(0.9f, 0.9f, 0.0f);
     this->setParticleRadius(mSubParticleRadius);
     glBindVertexArray(mSubParticleVertexArrayObject);
     glDrawElements(GL_POINTS, mSimulation->GetNumSubParticlesRegular(), 
-        GL_UNSIGNED_INT, 0);
+        GL_UNSIGNED_INT, 0);*/
 
     // draw boundary sub-particles
     this->setColor(0.9f, 0.0f, 0.0f);

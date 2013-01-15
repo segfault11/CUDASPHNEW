@@ -148,6 +148,7 @@ void keyboard (unsigned char key, int x, int y)
         gSim->DecreaseCmDistanceThresh();
         break;
     case 27:
+        delete gSim;
 		exit(0);
 		break;
 	default:

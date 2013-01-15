@@ -56,6 +56,7 @@ struct SimulationParameters
 
     /* SPH info */
     float compactSupport;
+    float compactSupportSub;
     int kernelParticles;        /* Average number of particles within kernel 
                                 ** radius */
 
@@ -73,12 +74,18 @@ struct SimulationParameters
 
     float fluidVolume;
 
-    /* Kernel coefficients */
+    // kernel coefficients for particle and sub-particle sim
     float poly6;
     float gradPoly6;
     float laplPoly6;
     float gradSpiky;
     float laplVisc;
+    float poly6Sub;
+    float gradPoly6Sub;
+    float laplPoly6Sub;
+    float gradSpikySub;
+    float laplViscSub;
+    
 
     /* surface extraction threshold parameters */
     float cmDistanceThresh;
@@ -241,12 +248,16 @@ private:
     unsigned int mThreadsPerBlockBoundary;
     unsigned int mThreadsPerBlockDefault;
     unsigned int mThreadsPerBlockSubParticle;
+    unsigned int mThreadsPerBlockSubParticleBoundary;
+    unsigned int mThreadsPerBlockSubParticleRegular;
     unsigned int mNumBlocks;                   
     unsigned int mNumBlocksSplit;
     unsigned int mNumBlocksBoundary;
     unsigned int mNumBlocksDefault;
     unsigned int mNumBlocksSubParticle;
-    
+    unsigned int mNumBlocksSubParticleBoundary;
+    unsigned int mNumBlocksSubParticleRegular;
+
     // numbers of different particle types
     int mNumParticlesSplit;
     int mNumParticlesBoundary;
