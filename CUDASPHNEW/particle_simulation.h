@@ -62,9 +62,11 @@ struct SimulationParameters
 
     /* Integration info */
     float timeStep;
+    float timeStepSubParticles;
 
     /* Simulation info */
     float particleMass;         /* Mass of each particle */
+    float subParticleMass;
     float gasStiffness;
     float restDensity;
     float dynamicViscosity;
@@ -115,6 +117,9 @@ public:
     // Executes one physics step/advances the particle system one step in time
     void Advance ();
 
+    // Executes one physics step only on the (regular) sub particles (debug method)
+    void AdvanceSubParticles ();
+
     // Access to the opengl vertex buffer object that stores the vertex data
     // (as described in the [ParticleVertexDataIdx] enum) of the particles
     GLuint GetGLParticleVertexBufferObject () const;
@@ -135,6 +140,7 @@ public:
     float GetSubParticleRadius () const;
     const char* GetParticleState () const;
     unsigned int GetNumParticles () const;
+    unsigned int GetNumTimesSteps () const;
     void SetNPartThresh (float val);
     void IncreaseCmDistanceThresh ();
     void DecreaseCmDistanceThresh ();
@@ -190,16 +196,19 @@ private:
     inline void computeCellStartEndList ();
     inline void computeSubParticleCellStartEndList ();
     inline void computeDensityPressure ();
+    inline void computeSubParticleDensityPressure(); 
     inline void computeAcceleration ();
+    inline void computeSubParticleAcceleration (); 
     inline void projectQuantities ();
-    inline void computeAccelerationSubParticles (); // delete me later
     inline void integrate ();
     inline void integrateSubParticles ();
     inline void handleCollisions ();
+    inline void handleSubParticleCollisions ();
     inline void extractSurfaceParticles ();
     inline void computeParticleState ();
     inline void collect ();
     inline void initializeSubParticles ();
+
 
     // Member declarations
 
@@ -233,6 +242,7 @@ private:
     int* _boundaryPrefixSumDevPtr;
     int* _defaultPrefixSumDevPtr;
     int* mSubParticleIdsDevPtr;
+    int* mSubParticleSortedIdsDevPtr;
     int* mParticleIdsDefaultDevPtr;
     int* mParticleIdsBoundaryDevPtr;
     int* mParticleIdsSplitDevPtr;
@@ -276,6 +286,9 @@ private:
     float _leftI;
     float _rightI;
 
+
+
+    unsigned int mNumTimeSteps;
     CudaTimer mTimer;
 };
 

@@ -51,7 +51,11 @@ texture<unsigned int, cudaTextureType1D, cudaReadModeElementType>
 //  declaration of aux. functions (device) 
 //-----------------------------------------------------------------------------
 __device__ inline int3 compute_grid_coordinate (float3 pos, float d);
+__device__ inline int3 compute_grid_coordinate_sub_particles(float3 pos, 
+    float d);
 __device__ inline int compute_hash_from_grid_coordinate (int i, int j, int k);
+__device__ inline int compute_hash_from_grid_coordinate_sub_particle (int i, 
+    int j, int k);
 __device__ inline float compute_distance (float3 a, float3 b);
 __device__ inline float compute_squared_distance (float3 a, float3 b);
 __device__ inline float norm (const float3& a);
@@ -59,15 +63,21 @@ __device__ inline void normalize (float3& a);
 __device__ inline float dot_product (const float3& a, const float3& b);
 __device__ float compute_particle_density_cell (const float3 &pos, 
 	float* pParticleList, int* pParticleIdList, int start, int end);
+__device__ float compute_sub_particle_density_cell (const float3 &pos, 
+	float* particleVertexData, int* particleIdList, int start, int end);
 __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
     (const float3& xi, float rhoi, float pi, const float3& vi,
     float* particleVertexData, float* particleSimulationData, 
     int* particleIdList, int start, int end, 
     float3* force, float3* colGra, float* colLapl,
     float3* sumPosNeighbor, float* nNeighbors);
-__device__ inline void project_quantities_cell (float3& acc, 
-    float& density, float& pressure, float& numNeighbors, const float3& xi,
-    int start, int end);
+__device__ inline void compute_sub_particle_viscosity_pressure_forces_cell
+    (const float3& xi, float rhoi, float pi, const float3& vi,
+    float* particleVertexData, float* particleSimulationData, 
+    int* particleIdList, int start, int end, 
+    float3* force, float3* colGra, float* colLapl);
+__device__ inline void project_quantities_cell (float& density, float& pressure, 
+    float& numNeighbors, const float3& xi, int start, int end);
 //-----------------------------------------------------------------------------
 // CUDA Kernel definitions 
 //-----------------------------------------------------------------------------
@@ -106,7 +116,7 @@ __global__ void compute_particle_hash (float* particleVertexData,
 __global__ void compute_sub_particle_hash (float* particleVertexData, 
     int* particleIdList, int* particleHashList, unsigned int numParticles) 
 {
-    int idx = blockIdx.x*blockDim.x+threadIdx.x;
+    int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
     if (idx >= numParticles)
     {
@@ -228,6 +238,63 @@ __global__ void compute_particle_density_pressure (float* particleVertexData,
     // set density and pressure
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY] = density;
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE] = pressure; 
+}
+//-----------------------------------------------------------------------------
+//  Compute density and pressure for each sub particle 
+__global__ void compute_sub_particle_density_pressure 
+    (float* subParticleVertexData, float* subParticleSimulationData, 
+    int* particleIdList, int* particleSortedIdList, int* cellStartList, 
+    int* cellEndList, unsigned int numParticles) 
+{
+    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if(idx >= numParticles)
+     {
+        return;
+    }
+
+	int id = particleIdList[idx];
+
+	float density = 0.0f;
+    float pressure;
+    float3 pos;
+
+    // get particles position form vertex data
+    pos.x = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
+    pos.y = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y];
+    pos.z = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z];
+
+    int3 c0 = compute_grid_coordinate_sub_particles(pos, 
+        -gSimParamsDev.compactSupportSub);
+    int3 c1 = compute_grid_coordinate_sub_particles(pos, 
+        gSimParamsDev.compactSupportSub);
+
+    int hash;
+    int start;
+    int end;
+
+    for(int k = c0.z; k <= c1.z; k++) 
+    {
+        for(int j = c0.y; j <= c1.y; j++) 
+        {
+            for(int i = c0.x; i <= c1.x; i++)
+            {
+                hash = compute_hash_from_grid_coordinate_sub_particle(i, j, k);
+                start = cellStartList[hash];
+                end = cellEndList[hash];
+                density += compute_sub_particle_density_cell(pos, 
+                    subParticleVertexData, particleSortedIdList, start, end);
+            }
+        }
+    }
+    
+    density *= gSimParamsDev.subParticleMass;
+    pressure = gSimParamsDev.gasStiffness*(density - 
+        gSimParamsDev.restDensity);
+
+    // set density and pressure
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY] = density;
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE] = pressure; 
 }
 //-----------------------------------------------------------------------------
 __global__ void compute_particle_acceleration_ifsurf 
@@ -378,6 +445,100 @@ __global__ void compute_particle_acceleration_ifsurf
         isSurfaceParticle[id] = 0;
     }*/
 }
+
+//-----------------------------------------------------------------------------
+__global__ void compute_sub_particle_acceleration
+    (float* subParticleVertexData, float* subParticleSimulationData, 
+    int* subParticleIdList, int* subParticleSortedIdList, int* cellStartList,
+    int* cellEndList, unsigned int numParticles)
+{
+    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if (idx >= numParticles)
+    {
+        return;
+    }
+    
+    int id = subParticleIdList[idx];
+
+    float density  = subParticleSimulationData[id*SD_NUM_ELEMENTS 
+        + SD_DENSITY];
+    float pressure = subParticleSimulationData[id*SD_NUM_ELEMENTS 
+        + SD_PRESSURE];
+    float tenCoeff = gSimParamsDev.tensionCoefficient;
+
+    float3 pos;
+    pos.x = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
+    pos.y = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y];
+    pos.z = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z];
+
+    float3 vel;
+    vel.x = subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X];
+    vel.y = subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y];
+    vel.z = subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z];
+
+    int3 c0 = compute_grid_coordinate_sub_particles(pos, 
+        -gSimParamsDev.compactSupportSub);
+    int3 c1 = compute_grid_coordinate_sub_particles(pos, 
+        gSimParamsDev.compactSupportSub);
+
+    float3 force;
+    force.x = 0.0f;
+    force.y = 0.0f;
+    force.z = 0.0f;
+
+    float3 colGra;
+    colGra.x = 0.0f;
+    colGra.y = 0.0f;
+    colGra.z = 0.0f;
+
+    float colLapl;
+    float colGraNorm;
+    float grav = gSimParamsDev.gravity;
+
+    int hash;
+    int start;
+    int end;
+
+    // compute viscosity and pressure forces
+    for (int k = c0.z; k <= c1.z; k++)
+    {
+        for (int j = c0.y; j <= c1.y; j++)
+        {
+            for (int i = c0.x; i <= c1.x; i++)
+            {
+                hash  = compute_hash_from_grid_coordinate_sub_particle(i,
+                    j, k);
+
+                start = cellStartList[hash];
+                end = cellEndList[hash];
+                compute_sub_particle_viscosity_pressure_forces_cell(pos, 
+                    density, pressure, vel, subParticleVertexData, 
+                    subParticleSimulationData, subParticleSortedIdList, 
+                    start, end, &force, &colGra, &colLapl);
+            }
+        }
+    }
+
+    // surface tension
+    colGraNorm = sqrtf(colGra.x*colGra.x + colGra.y*colGra.y 
+        + colGra.z*colGra.z);
+
+    float fCoeff = tenCoeff*colLapl/colGraNorm;
+
+    if (colGraNorm > gSimParamsDev.normThresh) 
+    {
+        force.x -= fCoeff*colGra.x;
+        force.y -= fCoeff*colGra.y;
+        force.z -= fCoeff*colGra.z;
+    }
+    
+    // store the actual acceleration
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_X] = force.x/density;  
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Y] = force.y/density
+        - grav;  
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Z] = force.z/density;  
+}
 //----------------------------------------------------------------------------
 __global__ void project_quantities (float* subParticleVertexData, 
     float* subParticleSimulationData, float* particleVertexData, 
@@ -392,68 +553,41 @@ __global__ void project_quantities (float* subParticleVertexData,
     }
 
     int id = subParticleIds[idx + offset];
+        
+    float3 pos;
+    pos.x = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
+    pos.y = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y];
+    pos.z = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z];
 
-    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X] =
-        particleSimulationData[id/8*SD_NUM_ELEMENTS + SD_VEL0_X];
-    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y] =
-        particleSimulationData[id/8*SD_NUM_ELEMENTS + SD_VEL0_Y];
-    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z] = 
-        particleSimulationData[id/8*SD_NUM_ELEMENTS + SD_VEL0_Z];
-        
-    /*float dt = gSimParamsDev.timeStep; 
-    subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X] += 
-        dt*subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X];
-    subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y] += 
-        dt*subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y];
-    subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z] += 
-        dt*subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z];*/
-        
-//    float3 pos;
-//    pos.x = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
-//    pos.y = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y];
-//    pos.z = subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z];
-//
-//    int3 c0 = compute_grid_coordinate(pos, -gSimParamsDev.compactSupportSub);
-//    int3 c1 = compute_grid_coordinate(pos, gSimParamsDev.compactSupportSub);
-//
-//    float3 acc;
-//    acc.x = 0.0f;
-//    acc.y = 0.0f;
-//    acc.z = 0.0f;
-//
-//    float density = 0.0f;
-//    float pressure = 0.0f;
-//    float numNeighbours = 0.0f;
-//
-//    int hash;
-//    int start;
-//    int end;
-//
-//    // compute viscosity and pressure forces
-//    for(int k = c0.z; k <= c1.z; k++)
-//    {
-//        for(int j = c0.y; j <= c1.y; j++)
-//        {
-//            for(int i = c0.x; i <= c1.x; i++)
-//            {
-//                hash  = compute_hash_from_grid_coordinate(i, j, k);
-//                start = tex1Dfetch(gCellStartList, hash);
-//                end = tex1Dfetch(gCellEndList, hash);
-//                project_quantities_cell(acc, density, pressure, numNeighbours, pos, start, 
-//                    end);
-//            }
-//        }
-//    }
-//
-//    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY] = density/numNeighbours;
-//    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE] = pressure/numNeighbours;
-//    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_X] = acc.x/numNeighbours;  
-//    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Y] = acc.y/numNeighbours;
-//    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Z] = acc.z/numNeighbours;  
-//
-///*    subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X] = 0.0f;
-//    subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Y] = 0.0f;
-//    subParticleVertexData[id*VD_NUM_ELEMENTS + VD_POS_Z] = 0.0f;*/
+    int3 c0 = compute_grid_coordinate(pos, -gSimParamsDev.compactSupportSub);
+    int3 c1 = compute_grid_coordinate(pos, gSimParamsDev.compactSupportSub);
+
+    float density = 0.0f;
+    float pressure = 0.0f;
+    float numNeighbours = 0.0f;
+
+    int hash;
+    int start;
+    int end;
+
+    // compute viscosity and pressure forces
+    for(int k = c0.z; k <= c1.z; k++)
+    {
+        for(int j = c0.y; j <= c1.y; j++)
+        {
+            for(int i = c0.x; i <= c1.x; i++)
+            {
+                hash  = compute_hash_from_grid_coordinate(i, j, k);
+                start = tex1Dfetch(gCellStartList, hash);
+                end = tex1Dfetch(gCellEndList, hash);
+                project_quantities_cell(density, pressure, numNeighbours, pos, start, 
+                    end);
+            }
+        }
+    }
+
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY] = density/numNeighbours;
+    subParticleSimulationData[id*SD_NUM_ELEMENTS + SD_PRESSURE] = pressure/numNeighbours;
 }
 //----------------------------------------------------------------------------
 /*__global__ void compute_sub_particle_acceleration
@@ -494,7 +628,7 @@ __global__ void integrate_euler (float* particleVertexData,
 }
 //-----------------------------------------------------------------------------
 __global__ void integrate_sub_particles_euler (float* subParticleVertexData, 
-    float* subParticleSimulationData, int* subParticleIds, char* particleStates,
+    float* subParticleSimulationData, int* subParticleIds,
     unsigned int nSubParticles, unsigned int offset)
 {
     unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -505,32 +639,22 @@ __global__ void integrate_sub_particles_euler (float* subParticleVertexData,
     }
 
     int id = subParticleIds[idx + offset];
-    int idParent = id/8;
     unsigned int idVert = id*VD_NUM_ELEMENTS;
     unsigned int idSim = id*SD_NUM_ELEMENTS;
-    float dt = gSimParamsDev.timeStep;
-    /*
-    char stateParent = particleStates[idParent];
-    stateParent = (stateParent & 3);
-
-    if (stateParent == 3)
-    {
-        return;
-    }*/
-
-    /*
+    float dt = gSimParamsDev.timeStepSubParticles;
+    
     subParticleSimulationData[idSim + SD_VEL0_X] += 
         dt*subParticleSimulationData[idSim + SD_ACC_X];
     subParticleSimulationData[idSim + SD_VEL0_Y] += 
         dt*subParticleSimulationData[idSim + SD_ACC_Y];
     subParticleSimulationData[idSim + SD_VEL0_Z] += 
         dt*subParticleSimulationData[idSim + SD_ACC_Z];
-    */
-    subParticleVertexData[idVert + VD_POS_X] = 0.0f;
+    
+    subParticleVertexData[idVert + VD_POS_X] += 
         dt*subParticleSimulationData[idSim + SD_VEL0_X];
-    subParticleVertexData[idVert + VD_POS_Y] = 0.0f;
+    subParticleVertexData[idVert + VD_POS_Y] +=
         dt*subParticleSimulationData[idSim + SD_VEL0_Y];
-    subParticleVertexData[idVert + VD_POS_Z] = 0.0f;
+    subParticleVertexData[idVert + VD_POS_Z] += 
         dt*subParticleSimulationData[idSim + SD_VEL0_Z];
 }
 //-----------------------------------------------------------------------------
@@ -672,6 +796,102 @@ __global__ void collision_handling (float* particleVertexData,
     }
 }
 //-----------------------------------------------------------------------------
+__global__ void collision_handling_sub_particles (float* subParticleVertexData, 
+    float* subParticleSimulationData, int* subParticleIds, 
+    unsigned int numParticles, unsigned int offset)
+{
+    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if (idx >= numParticles)
+    {
+        return;
+    }
+
+    int id = subParticleIds[idx + offset];
+    unsigned int idVert = id*VD_NUM_ELEMENTS;
+    unsigned int idSim = id*SD_NUM_ELEMENTS;
+
+    float3 pos;
+    float3 vel;
+
+    pos.x = subParticleVertexData[idVert + VD_POS_X];
+    pos.y = subParticleVertexData[idVert + VD_POS_Y];
+    pos.z = subParticleVertexData[idVert + VD_POS_Z];
+
+    vel.x = subParticleSimulationData[idSim + SD_VEL0_X];
+    vel.y = subParticleSimulationData[idSim + SD_VEL0_Y];
+    vel.z = subParticleSimulationData[idSim + SD_VEL0_Z];
+
+    float3 local;
+    float3 diff;
+    float3 nrm;
+
+    float dist;
+    float depth;
+
+    // compute "distance" to box, if positive the particle
+    // is outside the box.
+
+    // compute local position of the particle to the box
+    local.x = pos.x - gSimParamsDev.boxCen[0];
+    local.y = pos.y - gSimParamsDev.boxCen[1];
+    local.z = pos.z - gSimParamsDev.boxCen[2];
+
+    // project local pos to the upper right quadrand and
+    // compute difference to the boxDim vec
+    diff.x = abs(local.x) - gSimParamsDev.boxDim[0];
+    diff.y = abs(local.y) - gSimParamsDev.boxDim[1];
+    diff.z = abs(local.z) - gSimParamsDev.boxDim[2];
+
+    dist = max(diff.x, diff.y);
+    dist = max(dist, diff.z);
+    
+    // if the particle lies outside the box, the collision must be handled
+    float3 contact;
+    
+    if (dist > 0.0f)
+    {
+        // contact point in "box space"
+        contact.x = min(gSimParamsDev.boxDim[0], 
+            max(-gSimParamsDev.boxDim[0], local.x));
+        contact.y = min(gSimParamsDev.boxDim[1],
+            max(-gSimParamsDev.boxDim[1], local.y));
+        contact.z = min(gSimParamsDev.boxDim[2],
+            max(-gSimParamsDev.boxDim[2], local.z));
+
+        // translate to worldspace
+        contact.x += gSimParamsDev.boxCen[0];
+        contact.y += gSimParamsDev.boxCen[1];
+        contact.z += gSimParamsDev.boxCen[2];
+
+        // compute penetration depth
+        depth = compute_distance(contact, pos);
+
+        // compute normal
+        nrm.x = pos.x - contact.x;
+        nrm.y = pos.y - contact.y;
+        nrm.z = pos.z - contact.z;
+        normalize(nrm);
+
+        float velNorm = norm(vel);
+        float dp     = dot_product(nrm, vel);
+        float coeff  = (1 + gSimParamsDev.restitution*depth/
+            (gSimParamsDev.timeStep*velNorm))*dp;
+
+        vel.x -= coeff*nrm.x;
+        vel.y -= coeff*nrm.y;
+        vel.z -= coeff*nrm.z;
+
+        subParticleVertexData[idVert + VD_POS_X] = contact.x;
+        subParticleVertexData[idVert + VD_POS_Y] = contact.y;
+        subParticleVertexData[idVert + VD_POS_Z] = contact.z;
+
+        subParticleSimulationData[idSim + SD_VEL0_X] = vel.x;
+        subParticleSimulationData[idSim + SD_VEL0_Y] = vel.y;
+        subParticleSimulationData[idSim + SD_VEL0_Z] = vel.z;
+    }
+}
+//-----------------------------------------------------------------------------
 __global__ void find_split_particles (float* particleVertexData, 
     char* particleState, int* particleIdList, int* cellStartList, 
     int* cellEndList)
@@ -685,9 +905,7 @@ __global__ void find_split_particles (float* particleVertexData,
 
     unsigned int id = particleIdList[idx];
     float3 pos;
-    float3 xj;
-    float3 r;
-    float rn;
+
     pos.x = particleVertexData[id*VD_NUM_ELEMENTS + VD_POS_X];
 
     if (pos.x >= 0.2f && pos.x <= 0.5f)
@@ -797,7 +1015,7 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
     // if parent particle makes transition from "default" -> "split" (3)
     // "default" -> "boundary" (2), "split" -> "boundary" (14) the sub particle needs
     // to be reinitialized 
-    if (state == 2 || state == 3 || state == 14)
+    // if (state == 2 || state == 3 || state == 14 || state == 11)
     {
         float density = particleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY];
         float radicand = 3.0f*gSimParamsDev.particleMass/(4.0f*M_PI*density);
@@ -813,11 +1031,11 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
         {
             // update velocity
             int index = (8*id + i)*SD_NUM_ELEMENTS;
-            subParticleSimulationData[index + SD_VEL0_X] = 
+            subParticleSimulationData[index + SD_VEL0_X] = 0.0f;
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X];
-            subParticleSimulationData[index + SD_VEL0_Y] = 
+            subParticleSimulationData[index + SD_VEL0_Y] = 0.0f;
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y];
-            subParticleSimulationData[index + SD_VEL0_Z] = 
+            subParticleSimulationData[index + SD_VEL0_Z] = 0.0f;
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z];
            
             // update position
@@ -860,7 +1078,8 @@ __global__ void check_split_boundary_default (char* particleState,
     }
 }
 //-----------------------------------------------------------------------------
-__global__ void collect_ids (int* subParticleIdList, int* splitParticleIdList,
+__global__ void collect_ids (int* subParticleIdList, 
+    int* sortedSubParticleIdList,int* splitParticleIdList,
     int* boundaryParticleIdList, int* defaultParticleIdList,
     int* isSplit, int* isBoundary, int* isDefault, int* splitPrefixSum, 
     int* boundaryPrefixSum, int* defaultPrefixSum, 
@@ -880,6 +1099,7 @@ __global__ void collect_ids (int* subParticleIdList, int* splitParticleIdList,
         for (unsigned int i = 0; i < 8; i++)
         {
             subParticleIdList[8*splitPreSum + i] = 8*idx + i;
+            sortedSubParticleIdList[8*splitPreSum + i] = 8*idx + i;
         }
 
         splitParticleIdList[splitPreSum] = idx; 
@@ -892,6 +1112,8 @@ __global__ void collect_ids (int* subParticleIdList, int* splitParticleIdList,
         {
             subParticleIdList[8*(numParticlesSplit + boundaryPreSum) + i] =  
                 8*idx + i;
+            sortedSubParticleIdList[8*(numParticlesSplit + boundaryPreSum) 
+                + i] = 8*idx + i;
         }
 
         boundaryParticleIdList[boundaryPreSum] = idx;
@@ -973,9 +1195,42 @@ __device__ inline int3 compute_grid_coordinate(float3 pos, float d)
     return gridCoord;
 }
 //-----------------------------------------------------------------------------
-__device__ inline int compute_hash_from_grid_coordinate(int i, int j, int k)
+__device__ inline int3 compute_grid_coordinate_sub_particles(float3 pos, 
+    float d)
+{
+    int3 gridCoord;
+
+    gridCoord.x = (unsigned int)((pos.x + d - gSimParamsDev.gridOrigin[0])/
+        gSimParamsDev.gridSpacingSubParticles);
+    gridCoord.y = (unsigned int)((pos.y + d - gSimParamsDev.gridOrigin[1])/
+        gSimParamsDev.gridSpacingSubParticles);
+    gridCoord.z = (unsigned int)((pos.z + d - gSimParamsDev.gridOrigin[2])/
+        gSimParamsDev.gridSpacingSubParticles);
+
+    gridCoord.x = gridCoord.x%gSimParamsDev.gridDimSubParticles[0];
+    gridCoord.y = gridCoord.y%gSimParamsDev.gridDimSubParticles[1];
+    gridCoord.z = gridCoord.z%gSimParamsDev.gridDimSubParticles[2];
+
+    gridCoord.x = min(max(gridCoord.x, 0),
+        gSimParamsDev.gridDimSubParticles[0] - 1);
+    gridCoord.y = min(max(gridCoord.y, 0),
+        gSimParamsDev.gridDimSubParticles[1] - 1);
+    gridCoord.z = min(max(gridCoord.z, 0),
+        gSimParamsDev.gridDimSubParticles[2] - 1);
+
+    return gridCoord;
+}
+//-----------------------------------------------------------------------------
+__device__ inline int compute_hash_from_grid_coordinate (int i, int j, int k)
 {
     return gSimParamsDev.gridDim[0]*(gSimParamsDev.gridDim[1]*k + j) + i;
+}
+//-----------------------------------------------------------------------------
+__device__ inline int compute_hash_from_grid_coordinate_sub_particle (int i, 
+    int j, int k)
+{
+    return gSimParamsDev.gridDimSubParticles[0]*
+        (gSimParamsDev.gridDimSubParticles[1]*k + j) + i;
 }
 //-----------------------------------------------------------------------------
 __device__ inline float norm(const float3& a)
@@ -1008,9 +1263,8 @@ __device__ inline float dot_product (const float3& a, const float3& b)
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 //-----------------------------------------------------------------------------
-__device__ inline void project_quantities_cell (float3& acc, 
-    float& density, float& pressure, float& numNeighbors, const float3& xi,
-    int start, int end)
+__device__ inline void project_quantities_cell (float& density, 
+    float& pressure, float& numNeighbors, const float3& xi, int start, int end)
 {
     int j;
     float3 xj; // neighbor particle's position
@@ -1030,12 +1284,6 @@ __device__ inline void project_quantities_cell (float3& acc,
             + VD_POS_Y);
         xj.z = tex1Dfetch(gParticleVertexData, j*VD_NUM_ELEMENTS
             + VD_POS_Z);
-        vj.x = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
-            + SD_ACC_X);
-        vj.y = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
-            + SD_ACC_Y);
-        vj.z = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
-            + SD_ACC_Z);
         rhoj = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
             + SD_DENSITY);
         pj  = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
@@ -1047,9 +1295,6 @@ __device__ inline void project_quantities_cell (float3& acc,
         {
             density += rhoj;
             pressure += pj;
-            acc.x += vj.x;
-            acc.y += vj.y;
-            acc.z += vj.z;
             numNeighbors += 1.0f;
 
             /*d = h*h - sqDist;
@@ -1077,15 +1322,15 @@ __device__ float compute_particle_density_cell (const float3 &pos,
 
     for (int i = start; i < end; i++) 
     {
-        particleIndex = tex1Dfetch(gSortedParticleIdList, i);
+        particleIndex = particleIdList[i];
 
         // compute position of the neighbor
-        p.x = tex1Dfetch(gParticleVertexData, particleIndex*VD_NUM_ELEMENTS
-            + VD_POS_X);
-        p.y = tex1Dfetch(gParticleVertexData, particleIndex*VD_NUM_ELEMENTS
-            + VD_POS_Y);
-        p.z = tex1Dfetch(gParticleVertexData, particleIndex*VD_NUM_ELEMENTS
-            + VD_POS_Z);
+        p.x = particleVertexData[particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_X];
+        p.y = particleVertexData[particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_Y];
+        p.z = particleVertexData[particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_Z];
 
         r = compute_distance(p, pos);
         
@@ -1095,6 +1340,44 @@ __device__ float compute_particle_density_cell (const float3 &pos,
         {
             d = h*h - r*r;
             density += gSimParamsDev.poly6*d*d*d;
+        }
+    }
+
+    return density;
+}
+//-----------------------------------------------------------------------------
+//  Computes the contribution of neighborsub particles of one particular grid 
+//  cell to the density of the particle at position [pos].
+__device__ float compute_sub_particle_density_cell (const float3 &pos, 
+	float* particleVertexData, int* particleIdList, int start, int end)
+{
+    int particleIndex; // index of the neighbor of the particle
+    float density = 0.0f;
+    float3 p; // neighbor particle's position
+    float h = gSimParamsDev.compactSupportSub;
+    float r;
+    float d;
+
+    for (int i = start; i < end; i++) 
+    {
+        particleIndex = particleIdList[i];
+
+        // compute position of the neighbor
+        p.x = particleVertexData[particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_X];
+        p.y = particleVertexData[particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_Y];
+        p.z = particleVertexData[particleIndex*VD_NUM_ELEMENTS
+            + VD_POS_Z];
+
+        r = compute_distance(p, pos);
+        
+        // TODO: evaluating r*r <= h*h might save taking the sqrt in 
+        // compute_distance proc. 
+        if (r <= h) 
+        {
+            d = h*h - r*r;
+            density += gSimParamsDev.poly6Sub*d*d*d;
         }
     }
 
@@ -1199,7 +1482,93 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
         }
     }
 }
+//-----------------------------------------------------------------------------
+__device__ inline void compute_sub_particle_viscosity_pressure_forces_cell
+    (const float3& xi, float rhoi, float pi, const float3& vi,
+    float* particleVertexData, float* particleSimulationData, 
+    int* particleIdList, int start, int end, 
+    float3* force, float3* colGra, float* colLapl)
+{
+    int j;      // neighbor index in particle list
+    float3 xj;  // neighbor particle's position
+    float3 vj;  // neighbor particle's velocity
+    float rhoj; // neighbor density
+    float pj;   // neighbor pressure
+    float3 r;   // xi - xj
+    float rn;   // ||xi - xj||
+    float h = gSimParamsDev.compactSupportSub; // effective radius
+    float grad  = gSimParamsDev.gradSpikySub;
+    float lapl  = gSimParamsDev.laplViscSub;
+    float grad2 = gSimParamsDev.gradPoly6Sub;
+    float lapl2 = gSimParamsDev.laplPoly6Sub;
 
+    float pressure; // pressure term in the kernel approx
+    float rhoi2 = rhoi*rhoi;                    
+    float m = gSimParamsDev.subParticleMass;
+    float mu = gSimParamsDev.dynamicViscosity;
+
+    float d; // helper value to avoid arithmetic operations
+
+    for (int i = start; i < end; i++) 
+    {
+        // get neighbor index from particle list
+        j = particleIdList[i]; 
+
+        // get neighbor particle information
+        xj.x = particleVertexData[j*VD_NUM_ELEMENTS + VD_POS_X];
+        xj.y = particleVertexData[j*VD_NUM_ELEMENTS + VD_POS_Y];
+        xj.z = particleVertexData[j*VD_NUM_ELEMENTS + VD_POS_Z];
+        vj.x = particleSimulationData[j*SD_NUM_ELEMENTS + SD_VEL0_X];
+        vj.y = particleSimulationData[j*SD_NUM_ELEMENTS + SD_VEL0_Y];
+        vj.z = particleSimulationData[j*SD_NUM_ELEMENTS + SD_VEL0_Z];
+        rhoj = particleSimulationData[j*SD_NUM_ELEMENTS + SD_DENSITY];
+        pj   = particleSimulationData[j*SD_NUM_ELEMENTS + SD_PRESSURE];
+
+        r.x = xi.x - xj.x;
+        r.y = xi.y - xj.y;
+        r.z = xi.z - xj.z;
+
+        rn = norm(r);
+        
+        // TODO: * masse koennte ausgeklammert werden um multiplikationen
+        //         zu sparen.
+        //       * generell kann der pressure term in hinblick auf rhoi und
+        //         pi vereinfacht werden.
+        //       * visc force: mu koennte ausgeklammert werden etc.
+        //       * zwei float3's fuer beide kraefte koennten genutzt werden
+        //         um die terme zu vereinfachen.
+        pressure = rhoi*(pi/rhoi2 + pj/(rhoj*rhoj))*m;
+
+        if (rn <= h && rn > 0.0f)
+        {
+            // compute pressure force
+            d = (h-rn)*(h-rn);
+
+            force->x -= pressure*grad*d/rn*r.x;
+            force->y -= pressure*grad*d/rn*r.y;
+            force->z -= pressure*grad*d/rn*r.z;
+        
+            // compute viscosity force
+            d = (h - rn);
+
+            force->x += mu*(vj.x - vi.x)*m/rhoj*lapl*d;
+            force->y += mu*(vj.y - vi.y)*m/rhoj*lapl*d;
+            force->z += mu*(vj.z - vi.z)*m/rhoj*lapl*d;
+
+            // compute color gradient
+            d = (h*h - rn*rn)*(h*h - rn*rn);
+
+            colGra->x += m/rhoj*grad2*d*r.x;
+            colGra->y += m/rhoj*grad2*d*r.y;
+            colGra->z += m/rhoj*grad2*d*r.z;
+
+            // compute color laplacian
+            d = (h*h - rn*rn)*(3.0f*h*h - 7.0f*rn*rn);
+
+            *colLapl += m/rhoj*lapl2*d;
+        }
+    }
+}
 //-----------------------------------------------------------------------------
 //  HOST CODE
 //-----------------------------------------------------------------------------
@@ -1230,7 +1599,7 @@ ParticleSimulation::ParticleSimulation (): mParticleVertexData(NULL),
     mParticleSimulationDataDevPtr(NULL), mParticleIdsDevPtr(NULL),
     mParticleHashListDevPtr(NULL), mCellStartListDevPtr(NULL), 
     mCellEndListDevPtr(NULL), mIsSurfaceParticleDevPtr(NULL), mParticleVertexDataVbo(0),
-    mNumBlocks(0), mThreadsPerBlock(0), mNumSubParticles(0)
+    mNumBlocks(0), mThreadsPerBlock(0), mNumSubParticles(0), mNumTimeSteps(0)
 {
     memset(&mParameters, 0, sizeof(SimulationParameters));
 }
@@ -1310,6 +1679,7 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.restDensity = 998.648f;
     sim->mParameters.particleMass = sim->mParameters.restDensity*0.5f*0.5f*0.5f/
         static_cast<float>(sim->mParameters.numParticles);
+    sim->mParameters.subParticleMass = sim->mParameters.particleMass/8.0f;
     sim->mParameters.gasStiffness = 3.0f;
     sim->mParameters.dynamicViscosity = 3.0f;
     sim->mParameters.gravity = 9.81f;
@@ -1333,9 +1703,8 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.gradSpikySub = sim->mParameters.gradSpiky*64.0f;
     sim->mParameters.laplViscSub  =  sim->mParameters.laplVisc*64.0f;
 
-
-
     sim->mParameters.timeStep  = 0.003;
+    sim->mParameters.timeStepSubParticles = 0.0f;
     
     set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, h/2.0f,
         &sim->mParameters);
@@ -1375,7 +1744,8 @@ int* ParticleSimulation::CreateIsParticleSurfaceList
         cudaMemcpyDeviceToHost) );
 
     int extr = 0;
-    for (unsigned int i = 0; i < sim->mParameters.numParticles; i++) {
+    for (unsigned int i = 0; i < sim->mParameters.numParticles; i++) 
+    {
        extr += isSurfaceParticleList[i];
     }
 
@@ -1501,7 +1871,17 @@ void ParticleSimulation::Init ()
     CUDA_SAFE_CALL( cudaMalloc(&mIsSurfaceParticleDevPtr, 
         mParameters.numParticles*sizeof(int)) );
 
-    this->allocateMemoryTwoScale();
+
+    try
+    {
+        this->allocateMemoryTwoScale();
+    }
+    catch (std::runtime_error& e)
+    {
+        std::cout << e.what() << std::endl;        
+        system("pause");
+    }
+
 
     // set up textures, for faster memory look-ups through caching
     // NOTE: VertexData needs to be mapped to get a valid device pointer, 
@@ -1630,6 +2010,8 @@ void ParticleSimulation::allocateMemoryTwoScale ()
     CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&mGraphicsResources[3], 
         mSubParticleIdsVbo, cudaGraphicsMapFlagsNone) );
 
+    CUDA_SAFE_CALL( cudaMalloc(&mSubParticleSortedIdsDevPtr, 
+        sizeof(int)*8*mParameters.numParticles) );
     CUDA_SAFE_CALL( cudaMalloc(&mSubParticleSimulationDataDevPtr, 
         8*mParameters.numParticles*sizeof(float)*SD_NUM_ELEMENTS) );
     CUDA_SAFE_CALL( cudaMemset(mSubParticleSimulationDataDevPtr, 0,
@@ -1676,36 +2058,8 @@ void ParticleSimulation::Bind () const
         sizeof(SimulationParameters)) );  
 }
 //-----------------------------------------------------------------------------
-void countParticleStates (char* states, unsigned int numParticles)
-{
-    char* statesHost = new char[numParticles];
-    unsigned int numSplit = 0;
-    unsigned int numBoundary = 0;
-
-    cudaMemcpy(statesHost, states, numParticles*sizeof(char), cudaMemcpyDeviceToHost);
-    
-    for (unsigned int i = 0; i < numParticles; i++)
-    {
-        if (((int)statesHost[i] & 3) == 3)
-        {
-            numSplit++;
-        }
-        if (((int)statesHost[i] & 3) == 2)
-        {
-            numBoundary++;
-        }
-    }
-
-    cout << "host results" << endl;
-    cout << "#split " << numSplit << " #boundary " << numBoundary << endl;
-
-    
-    delete[] statesHost;
-}
 void ParticleSimulation::Advance ()
-{
-    static int frame = 0;
-    
+{    
     try
     {
         this->map();
@@ -1714,22 +2068,51 @@ void ParticleSimulation::Advance ()
         this->computeCellStartEndList();
         this->computeDensityPressure();
         this->computeAcceleration();
-        
         this->computeParticleState();
         this->collect();
-        this->initializeSubParticles();  
-        
-    //    this->computeSubParticleHash();
-    //    this->sortSubParticleIdsByHash();
-    //    this->computeSubParticleCellStartEndList ();
+        this->initializeSubParticles(); 
+        //this->computeSubParticleHash();
+        //this->sortSubParticleIdsByHash();
+        //this->computeSubParticleCellStartEndList();
+        //this->projectQuantities();
+        //this->computeSubParticleDensityPressure(); 
+        //this->computeSubParticleAcceleration();
         this->integrate();
-        this->projectQuantities();
-        this->integrateSubParticles();
+        //this->integrateSubParticles();
         this->handleCollisions();
+        //this->handleSubParticleCollisions();
         this->unmap();
+
+        mNumTimeSteps++;
     }
     catch (runtime_error& e)
     {  
+        cout << e.what() << endl;
+        system("pause");
+    }
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::AdvanceSubParticles ()
+{
+    try
+    {
+        this->map();
+        this->computeSubParticleHash();
+        //CUDADumpArrayElements<float>(mSubParticleSimulationDataDevPtr, 
+        //    SD_NUM_ELEMENTS*mParameters.numParticles*8, mSubParticleIdsDevPtr, 
+        //    mNumSubParticles, SD_VEL0_X, SD_NUM_ELEMENTS);
+        CUDADumpArray<int>(mSubParticleHashsDevPtr, mNumSubParticles);
+        system("pause");
+        this->sortSubParticleIdsByHash();
+        this->computeSubParticleCellStartEndList();
+        this->computeSubParticleDensityPressure(); 
+        this->computeSubParticleAcceleration();
+        this->integrateSubParticles();
+        this->handleSubParticleCollisions();
+        this->unmap();
+    }
+    catch (runtime_error& e)
+    {
         cout << e.what() << endl;
         system("pause");
     }
@@ -1756,6 +2139,11 @@ const char* ParticleSimulation::GetParticleState () const
 unsigned int ParticleSimulation::GetNumParticles () const
 {
     return mParameters.numParticles;
+}
+//-----------------------------------------------------------------------------
+unsigned int ParticleSimulation::GetNumTimesSteps () const
+{
+    return mNumTimeSteps;
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::SetNPartThresh (float dVal)
@@ -1854,7 +2242,7 @@ void ParticleSimulation::sortSubParticleIdsByHash ()
     thrust::sort_by_key(thrust::device_ptr<int>(mSubParticleHashsDevPtr),
         thrust::device_ptr<int>(mSubParticleHashsDevPtr + 
         mNumSubParticles),
-        thrust::device_ptr<int>(mSubParticleIdsDevPtr));
+        thrust::device_ptr<int>(mSubParticleSortedIdsDevPtr));
 }
 
 //-----------------------------------------------------------------------------
@@ -1899,12 +2287,46 @@ void ParticleSimulation::computeDensityPressure ()
         mParticleIdsDevPtr, mCellStartListDevPtr, mCellEndListDevPtr);
 }
 //-----------------------------------------------------------------------------
+void ParticleSimulation::computeSubParticleDensityPressure () 
+{
+    if (mNumSubParticles == 0)
+    {
+        return;
+    }
+
+    compute_sub_particle_density_pressure <<< mNumBlocksSubParticle,
+        mThreadsPerBlockSubParticle >>> 
+        (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr, 
+        mSubParticleIdsDevPtr, mSubParticleSortedIdsDevPtr, 
+        mSubParticleCellStartIdsDevPtr, mSubParticleCellEndIdsDevPtr, 
+        mNumSubParticles);
+}
+//-----------------------------------------------------------------------------
 void ParticleSimulation::computeAcceleration ()
 {
     compute_particle_acceleration_ifsurf <<< mNumBlocks, mThreadsPerBlock >>> 
         (mParticleVertexDataDevPtr, mParticleSimulationDataDevPtr, 
         mParticleIdsDevPtr, mCellStartListDevPtr, mCellEndListDevPtr,
         mIsSurfaceParticleDevPtr);
+}
+//-----------------------------------------------------------------------------
+//__global__ void compute_sub_particle_acceleration
+//    (float* subParticleVertexData, float* subParticleSimulationData, 
+//    int* subParticleIdList, int* subParticleSortedIdList, int* cellStartList,
+//    int* cellEndList, unsigned int numParticles)
+void ParticleSimulation::computeSubParticleAcceleration ()
+{
+    if (mNumParticlesSplit == 0)
+    {
+        return;
+    }
+    
+    compute_sub_particle_acceleration <<< mNumBlocksSubParticle, 
+        mThreadsPerBlockSubParticle >>> 
+        (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr, 
+        mSubParticleIdsDevPtr, mSubParticleSortedIdsDevPtr, 
+        mSubParticleCellStartIdsDevPtr, mSubParticleCellEndIdsDevPtr,
+        mNumSubParticles);
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::projectQuantities ()
@@ -1922,10 +2344,6 @@ void ParticleSimulation::projectQuantities ()
         mSubParticleIdsDevPtr, 8*mNumParticlesBoundary, 8*mNumParticlesSplit);
 }
 //-----------------------------------------------------------------------------
-void ParticleSimulation::computeAccelerationSubParticles ()
-{
-}
-//-----------------------------------------------------------------------------
 void ParticleSimulation::integrate ()
 {
     integrate_euler <<< mNumBlocks, mThreadsPerBlock >>>
@@ -1940,11 +2358,10 @@ void ParticleSimulation::integrateSubParticles ()
     if (mNumSubParticles != 0)
     {
         integrate_sub_particles_euler 
-            <<< mNumBlocksSubParticleRegular, 
-            mThreadsPerBlockSubParticleRegular >>>
+            <<< mNumBlocksSubParticle, 
+            mThreadsPerBlockSubParticle >>>
             (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr, 
-            mSubParticleIdsDevPtr, mParticleStatesDevPtr, 
-            8*mNumParticlesSplit, 0);
+            mSubParticleIdsDevPtr, mNumSubParticles, 0);
     }
 }
 //-----------------------------------------------------------------------------
@@ -1952,6 +2369,19 @@ void ParticleSimulation::handleCollisions ()
 {
     collision_handling <<< mNumBlocks, mThreadsPerBlock >>>
         (mParticleVertexDataDevPtr, mParticleSimulationDataDevPtr);
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::handleSubParticleCollisions ()
+{
+    if (mNumSubParticles == 0)
+    {
+        return; 
+    }
+   
+    collision_handling_sub_particles <<< mNumBlocksSubParticle, 
+        mThreadsPerBlockSubParticle >>>
+        (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr, 
+        mSubParticleIdsDevPtr, mNumSubParticles, 0);
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::computeParticleState ()
@@ -2002,10 +2432,10 @@ void ParticleSimulation::collect ()
         cudaMemcpyDeviceToHost) );    
 
     collect_ids <<< mNumBlocks, mThreadsPerBlock >>>
-        (mSubParticleIdsDevPtr, mParticleIdsSplitDevPtr,
-        mParticleIdsBoundaryDevPtr, mParticleIdsDefaultDevPtr, 
-        _isSplitDevPtr, _isBoundaryDevPtr, _isDefaultDevPtr, 
-        _splitPrefixSumDevPtr, _boundaryPrefixSumDevPtr, 
+        (mSubParticleIdsDevPtr, mSubParticleSortedIdsDevPtr,
+        mParticleIdsSplitDevPtr, mParticleIdsBoundaryDevPtr, 
+        mParticleIdsDefaultDevPtr, _isSplitDevPtr, _isBoundaryDevPtr, 
+        _isDefaultDevPtr, _splitPrefixSumDevPtr, _boundaryPrefixSumDevPtr, 
         _defaultPrefixSumDevPtr, mNumParticlesSplit);
 
     mNumSubParticles = 8*(mNumParticlesSplit + mNumParticlesBoundary);

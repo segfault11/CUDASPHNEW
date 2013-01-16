@@ -115,13 +115,19 @@ void display ()
 {
     //gObstacleRenderer->draw();
 
-    gRenderer->render();
-    
-    if (!gPause) 
+    if (gSim->GetNumTimesSteps() <= 400)
     {
+        gRenderer->render();
         gSim->Advance();
+        cout << gSim->GetNumTimesSteps() << endl;
     }
-    
+    else
+    {
+        gRenderer->renderRegularSubParticles();
+        gSim->AdvanceSubParticles();
+    }
+
+
     //   system("pause");
 }
 

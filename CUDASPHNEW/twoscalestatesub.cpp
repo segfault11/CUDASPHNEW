@@ -97,11 +97,11 @@ void TwoScaleStateSub::render () const
         GL_UNSIGNED_INT, 0);
 
     // draw regular sub-particles
-   /* this->setColor(0.9f, 0.9f, 0.0f);
+    this->setColor(0.9f, 0.9f, 0.0f);
     this->setParticleRadius(mSubParticleRadius);
     glBindVertexArray(mSubParticleVertexArrayObject);
     glDrawElements(GL_POINTS, mSimulation->GetNumSubParticlesRegular(), 
-        GL_UNSIGNED_INT, 0);*/
+        GL_UNSIGNED_INT, 0);
 
     // draw boundary sub-particles
     this->setColor(0.9f, 0.0f, 0.0f);
@@ -111,6 +111,26 @@ void TwoScaleStateSub::render () const
         GL_UNSIGNED_INT, 
         reinterpret_cast<void*>(mSimulation->GetNumSubParticlesRegular()*
         sizeof(int)));
+
+    glFlush();
+	glutSwapBuffers();
+	glutPostRedisplay();
+}
+//-----------------------------------------------------------------------------
+void TwoScaleStateSub::renderRegularSubParticles () const 
+{
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(mProgram);
+
+    // draw regular sub-particles
+    this->setColor(0.9f, 0.9f, 0.0f);
+    this->setParticleRadius(mSubParticleRadius);
+    glBindVertexArray(mSubParticleVertexArrayObject);
+    glDrawElements(GL_POINTS, mSimulation->GetNumSubParticlesRegular(), 
+        GL_UNSIGNED_INT, 0);
+
 
     glFlush();
 	glutSwapBuffers();

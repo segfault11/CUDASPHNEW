@@ -80,7 +80,8 @@ void cudaSafeFree (T** ptr )
 
 
 template<typename T> 
-inline void cudaDumpArray (T* arr, unsigned int numElements)
+inline void CUDADumpArray (T* arr, unsigned int numElements, unsigned int offset = 0, 
+    unsigned int stride = 1)
 {
     T* hostData = new T[numElements];
 
@@ -89,10 +90,40 @@ inline void cudaDumpArray (T* arr, unsigned int numElements)
     
     for (unsigned int i = 0; i < numElements; i++)
     {
-        std::cout << hostData[i] << std::endl;
+        std::cout << hostData[i*stride + offset] << std::endl;
     }
     
     delete[] hostData;
+}
+
+template<typename T>
+void CUDADumpArrayElements (T* arr, unsigned int numElemsArr, 
+    int* elemArr, unsigned int numElements, unsigned int offset = 0, 
+    unsigned int stride = 1, unsigned int pauseAfter = 0)
+{
+    T* hostData = new T[numElemsArr];
+    int* elemData = new int[numElements];
+
+    CUDA_SAFE_CALL( cudaMemcpy(hostData, arr, sizeof(T)*numElemsArr,
+        cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(elemData, elemArr, sizeof(int)*numElements,
+        cudaMemcpyDeviceToHost) );
+    
+    for (unsigned int i = 0; i < numElements; i++)
+    {
+        std::cout << hostData[elemData[i]*stride + offset] << std::endl;
+        
+        if (pauseAfter != 0)
+        {
+            if ((i % pauseAfter) == 0)
+            {
+                system("pause");
+            }
+        } 
+    }
+    
+    delete[] hostData;
+    delete[] elemData;
 }
 
 inline void cudaCheckUnique (unsigned int* arr, unsigned int numElements, unsigned int maxRange)
