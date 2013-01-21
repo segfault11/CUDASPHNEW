@@ -1031,11 +1031,11 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
         {
             // update velocity
             int index = (8*id + i)*SD_NUM_ELEMENTS;
-            subParticleSimulationData[index + SD_VEL0_X] = 0.0f;
+            subParticleSimulationData[index + SD_VEL0_X] = 
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_X];
-            subParticleSimulationData[index + SD_VEL0_Y] = 0.0f;
+            subParticleSimulationData[index + SD_VEL0_Y] = 
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Y];
-            subParticleSimulationData[index + SD_VEL0_Z] = 0.0f;
+            subParticleSimulationData[index + SD_VEL0_Z] = 
                 particleSimulationData[id*SD_NUM_ELEMENTS + SD_VEL0_Z];
            
             // update position
@@ -1570,6 +1570,19 @@ __device__ inline void compute_sub_particle_viscosity_pressure_forces_cell
     }
 }
 //-----------------------------------------------------------------------------
+template<typename T>
+__global__ void copy_array (T* dst, T* src, unsigned int numElements)
+{
+    unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if (idx >= numElements)
+    {
+        return;
+    }
+
+    dst[idx] = src[idx];
+}
+//-----------------------------------------------------------------------------
 //  HOST CODE
 //-----------------------------------------------------------------------------
 
@@ -1704,7 +1717,7 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.laplViscSub  =  sim->mParameters.laplVisc*64.0f;
 
     sim->mParameters.timeStep  = 0.003;
-    sim->mParameters.timeStepSubParticles = 0.0f;
+    sim->mParameters.timeStepSubParticles = 0.003f;
     
     set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, h/2.0f,
         &sim->mParameters);
@@ -2098,15 +2111,13 @@ void ParticleSimulation::AdvanceSubParticles ()
     {
         this->map();
         this->computeSubParticleHash();
-        //CUDADumpArrayElements<float>(mSubParticleSimulationDataDevPtr, 
-        //    SD_NUM_ELEMENTS*mParameters.numParticles*8, mSubParticleIdsDevPtr, 
-        //    mNumSubParticles, SD_VEL0_X, SD_NUM_ELEMENTS);
-        CUDADumpArray<int>(mSubParticleHashsDevPtr, mNumSubParticles);
-        system("pause");
         this->sortSubParticleIdsByHash();
         this->computeSubParticleCellStartEndList();
         this->computeSubParticleDensityPressure(); 
+        mTimer.Start();
         this->computeSubParticleAcceleration();
+        mTimer.Stop();
+        mTimer.DumpElapsed();
         this->integrateSubParticles();
         this->handleSubParticleCollisions();
         this->unmap();
@@ -2239,6 +2250,8 @@ void ParticleSimulation::sortParticleIdsByHash ()
 //-----------------------------------------------------------------------------
 void ParticleSimulation::sortSubParticleIdsByHash ()
 {
+    copy_array <int> <<< mNumBlocksSubParticle, mThreadsPerBlockSubParticle >>>
+        (mSubParticleSortedIdsDevPtr, mSubParticleIdsDevPtr, mNumSubParticles);
     thrust::sort_by_key(thrust::device_ptr<int>(mSubParticleHashsDevPtr),
         thrust::device_ptr<int>(mSubParticleHashsDevPtr + 
         mNumSubParticles),

@@ -81,7 +81,7 @@ void cudaSafeFree (T** ptr )
 
 template<typename T> 
 inline void CUDADumpArray (T* arr, unsigned int numElements, unsigned int offset = 0, 
-    unsigned int stride = 1)
+    unsigned int stride = 1, unsigned int pauseAfter = 0)
 {
     T* hostData = new T[numElements];
 
@@ -91,6 +91,41 @@ inline void CUDADumpArray (T* arr, unsigned int numElements, unsigned int offset
     for (unsigned int i = 0; i < numElements; i++)
     {
         std::cout << hostData[i*stride + offset] << std::endl;
+
+        if (pauseAfter != 0)
+        {
+            if ((i % pauseAfter) == 0)
+            {
+                system("pause");
+            }
+        }
+    }
+    
+    delete[] hostData;
+}
+
+
+template<typename T> 
+inline void CUDADumpArrayRanged (T* arr, unsigned int numElements, 
+    unsigned int s, unsigned int e, unsigned int offset = 0, 
+    unsigned int stride = 1, unsigned int pauseAfter = 0)
+{
+    T* hostData = new T[numElements];
+
+    CUDA_SAFE_CALL( cudaMemcpy(hostData, arr, sizeof(T)*numElements,
+        cudaMemcpyDeviceToHost) );
+    
+    for (unsigned int i = s; i <= e; i++)
+    {
+        std::cout << hostData[i*stride + offset] << std::endl;
+
+        if (pauseAfter != 0)
+        {
+            if ((i % pauseAfter) == 0)
+            {
+                system("pause");
+            }
+        }
     }
     
     delete[] hostData;
