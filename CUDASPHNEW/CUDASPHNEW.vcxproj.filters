@@ -46,6 +46,9 @@
     <Filter Include="ParticleRenderer\Two Scale State Sub">
       <UniqueIdentifier>{1990c102-08e7-47f7-9257-6f50ad033b5e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ParticleSimulation\SPH in Complex Shapes">
+      <UniqueIdentifier>{6e2efd27-0466-4d0f-b71b-9d457d47c963}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="particle_renderer01_f.glsl">
@@ -159,6 +162,9 @@
     <ClCompile Include="twoscalestatesub.cpp">
       <Filter>ParticleRenderer\Two Scale State Sub</Filter>
     </ClCompile>
+    <ClCompile Include="SphInComplexShapes.cpp">
+      <Filter>ParticleSimulation\SPH in Complex Shapes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util.h">
@@ -223,6 +229,9 @@
     </ClInclude>
     <ClInclude Include="twoscalestatesub.h">
       <Filter>ParticleRenderer\Two Scale State Sub</Filter>
+    </ClInclude>
+    <ClInclude Include="SphInComplexShapes.h">
+      <Filter>ParticleSimulation\SPH in Complex Shapes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

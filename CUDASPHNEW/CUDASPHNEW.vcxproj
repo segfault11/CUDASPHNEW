@@ -19,6 +19,7 @@
     <ClCompile Include="cgtk\src\opengl.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="point_in_mesh_test.cpp" />
+    <ClCompile Include="SphInComplexShapes.cpp" />
     <ClCompile Include="triangle_mesh.cpp" />
     <ClCompile Include="obstacle_renderer.cpp" />
     <ClCompile Include="particle_renderer01.cpp" />
@@ -40,6 +41,7 @@
     <ClInclude Include="point_in_mesh_test.h" />
     <ClInclude Include="sparse_voxel_map.h" />
     <ClInclude Include="SpatialHashMap.h" />
+    <ClInclude Include="SphInComplexShapes.h" />
     <ClInclude Include="triangle_mesh.h" />
     <ClInclude Include="obstacle_renderer.h" />
     <ClInclude Include="particle_renderer01.h" />

@@ -20,6 +20,7 @@
 #include "twoscalestate.h"
 #include "twoscalestatesub.h"
 #include <iomanip>
+#include "SphInComplexShapes.h"
 
 using namespace std;
 
@@ -37,7 +38,15 @@ bool gPause;
 
 int main (int argc, char* argv[]) 
 {
-    cudaGLSetGLDevice(0);    
+    SphInComplexShapes s(Wm5::Vector3f(-0.5f, -0.5f, -0.5f),
+        Wm5::Vector3f(0.5f, 0.5f, 0.5f), 0.005f, 0.01f, 0.02f, 0.1f, 0.01f);
+    s.SetRectangle(Wm5::Rectangle3f(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
+        Wm5::Vector3f(1.0f, 0.0f, 0.0f), Wm5::Vector3f(0.0f, 0.0f, 1.0f),
+        0.25f, 0.25f), Wm5::Vector3f(0.0f, 1.0f, 0.0f));
+    s.SaveSlicedDistanceMapToPpm("distance_map.ppm");
+    s.SaveSlicedDensityMapToPpm("density_map.ppm");
+    system("pause");
+    /*cudaGLSetGLDevice(0);    
     glutInit(&argc, argv);
     glutInitContextVersion(3, 3);
     glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
@@ -53,7 +62,7 @@ int main (int argc, char* argv[])
     Init();
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
-	glutMainLoop();
+	glutMainLoop();*/
 
     return 0;
 }
@@ -115,7 +124,7 @@ void display ()
 {
     //gObstacleRenderer->draw();
 
-    if (gSim->GetNumTimesSteps() <= 400)
+    /*if (gSim->GetNumTimesSteps() <= 400)
     {
         gRenderer->render();
         gSim->Advance();
@@ -125,9 +134,11 @@ void display ()
     {
         gRenderer->renderRegularSubParticles();
         gSim->AdvanceSubParticles();
-    }
+    }*/
 
-
+    gRenderer->render();
+    gSim->AdvanceTwoScale();
+    
     //   system("pause");
 }
 

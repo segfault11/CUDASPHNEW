@@ -41,6 +41,17 @@ enum ParticleSimulationDataIdx
     SD_NUM_ELEMENTS
 };
 
+
+enum BoundaryParticleData
+{
+    BPD_POS_X,
+    BPD_POS_Y,
+    BPD_POS_Z,
+    BPD_DENSITY,
+    BPD_PRESSURE
+};
+
+
 struct SimulationParameters
 {
     // Definition of the computational domain ( = uniform cartesian grid) 
@@ -119,6 +130,8 @@ public:
 
     // Executes one physics step only on the (regular) sub particles (debug method)
     void AdvanceSubParticles ();
+
+    void AdvanceTwoScale ();
 
     // Access to the opengl vertex buffer object that stores the vertex data
     // (as described in the [ParticleVertexDataIdx] enum) of the particles
@@ -290,6 +303,15 @@ private:
 
     unsigned int mNumTimeSteps;
     CudaTimer mTimer;
+
+
+    float* mDeviceMemory;
+
+    // boundary handling
+    float* mBoundaryParticleDataDevPtr;
+    unsigned int mBoundaryIndicesDevPtr;
+    int* mBoundaryParticleCellStartListDevPtr;          
+    int* mBoundaryParticleCellEndListDevPtr;
 };
 
 #endif /*include guard of: particle_simulation.h */

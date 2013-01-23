@@ -76,8 +76,8 @@ __device__ inline void compute_sub_particle_viscosity_pressure_forces_cell
     float* particleVertexData, float* particleSimulationData, 
     int* particleIdList, int start, int end, 
     float3* force, float3* colGra, float* colLapl);
-__device__ inline void project_quantities_cell (float& density, float& pressure, 
-    float& numNeighbors, const float3& xi, int start, int end);
+__device__ inline void project_quantities_cell (float3& acc, float& density,
+    float& pressure, float& numNeighbors, const float3& xi, int start, int end);
 //-----------------------------------------------------------------------------
 // CUDA Kernel definitions 
 //-----------------------------------------------------------------------------
@@ -562,6 +562,10 @@ __global__ void project_quantities (float* subParticleVertexData,
     int3 c0 = compute_grid_coordinate(pos, -gSimParamsDev.compactSupportSub);
     int3 c1 = compute_grid_coordinate(pos, gSimParamsDev.compactSupportSub);
 
+    float3 acc;
+    acc.x = 0.0f;
+    acc.y = 0.0f;
+    acc.z = 0.0f;
     float density = 0.0f;
     float pressure = 0.0f;
     float numNeighbours = 0.0f;
@@ -580,8 +584,8 @@ __global__ void project_quantities (float* subParticleVertexData,
                 hash  = compute_hash_from_grid_coordinate(i, j, k);
                 start = tex1Dfetch(gCellStartList, hash);
                 end = tex1Dfetch(gCellEndList, hash);
-                project_quantities_cell(density, pressure, numNeighbours, pos, start, 
-                    end);
+                project_quantities_cell(acc, density, pressure, numNeighbours,
+                    pos, start, end);
             }
         }
     }
@@ -1015,7 +1019,7 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
     // if parent particle makes transition from "default" -> "split" (3)
     // "default" -> "boundary" (2), "split" -> "boundary" (14) the sub particle needs
     // to be reinitialized 
-    // if (state == 2 || state == 3 || state == 14 || state == 11)
+     if (state == 2 || state == 3 || state == 14 || state == 11)
     {
         float density = particleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY];
         float radicand = 3.0f*gSimParamsDev.particleMass/(4.0f*M_PI*density);
@@ -1263,14 +1267,15 @@ __device__ inline float dot_product (const float3& a, const float3& b)
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 //-----------------------------------------------------------------------------
-__device__ inline void project_quantities_cell (float& density, 
+__device__ inline void project_quantities_cell (float3& acc, float& density, 
     float& pressure, float& numNeighbors, const float3& xi, int start, int end)
 {
     int j;
-    float3 xj; // neighbor particle's position
+    float3 xj;  // neighbor particle's position
     float3 vj;  // neighbor particle's velocity
     float rhoj; // neighbor density
     float pj;   // neighbor pressure
+    float3 aj;  // neighbor acceleration
     float h = gSimParamsDev.compactSupportSub;
     float sqDist, d;
 
@@ -1288,6 +1293,12 @@ __device__ inline void project_quantities_cell (float& density,
             + SD_DENSITY);
         pj  = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
             + SD_PRESSURE);
+        aj.x = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_ACC_X);
+        aj.y = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_ACC_Y);
+        aj.z = tex1Dfetch(gParticleSimulationData, j*SD_NUM_ELEMENTS
+            + SD_ACC_Z);
 
         sqDist = compute_squared_distance(xi, xj);
 
@@ -1295,6 +1306,9 @@ __device__ inline void project_quantities_cell (float& density,
         {
             density += rhoj;
             pressure += pj;
+            acc.x += aj.x;
+            acc.y += aj.y;
+            acc.z += aj.z;
             numNeighbors += 1.0f;
 
             /*d = h*h - sqDist;
@@ -1716,8 +1730,8 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.gradSpikySub = sim->mParameters.gradSpiky*64.0f;
     sim->mParameters.laplViscSub  =  sim->mParameters.laplVisc*64.0f;
 
-    sim->mParameters.timeStep  = 0.003;
-    sim->mParameters.timeStepSubParticles = 0.003f;
+    sim->mParameters.timeStep  = 0.001;
+    sim->mParameters.timeStepSubParticles = 0.001f;
     
     set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, h/2.0f,
         &sim->mParameters);
@@ -1939,58 +1953,19 @@ void ParticleSimulation::Init ()
     //
     // Init boundary handling
     //
-    /*std::cout << "loading boundary information ... " << std::endl;
-    BoundaryMap bmap("icosphere.txt");
-    std::cout << "finished loading" << std::endl;
-   
-    unsigned int nCoords = bmap.GetNumCoordinates();
-    unsigned int totalSamples = bmap.GetNumTotalSamples();
-
-    CUDA_SAFE_CALL( cudaMalloc(&_boundaryMapIndexMapDevPtr, 
-        totalSamples*sizeof(unsigned int)) );
-    
-    CUDA_SAFE_CALL( cudaMalloc(&_boundaryMapNodeTableDevPtr, 
-        NC_NUM_ELEMENTS*nCoords*sizeof(float)) );
 
 
-    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapIndexMapDevPtr, bmap.GetIndexMap(),
-        sizeof(unsigned int)*totalSamples, cudaMemcpyHostToDevice) );
+    try
+    {
+        CUDA_SAFE_CALL( cudaMalloc(&mDeviceMemory, sizeof(float)*1024*1024*25) );
+    }
+    catch (std::runtime_error& e)
+    {
+        std::cout << e.what() << std::endl;
+        system("pause");
+    }
 
-    CUDA_SAFE_CALL( cudaMemcpy(_boundaryMapNodeTableDevPtr, bmap.GetNodeTable(),
-        NC_NUM_ELEMENTS*nCoords*sizeof(float), cudaMemcpyHostToDevice) );
-
-    CUDA_SAFE_CALL ( cudaBindTexture(0, gIndexMap, _boundaryMapIndexMapDevPtr, 
-        descu, totalSamples*sizeof(unsigned int)) );
-
-    CUDA_SAFE_CALL ( cudaBindTexture(0, gNodeTable, _boundaryMapNodeTableDevPtr, 
-        descf, NC_NUM_ELEMENTS*nCoords*sizeof(float)) );
-
-    unsigned int nSamples[3];
-    nSamples[0] = bmap.GetIMax();
-    nSamples[1] = bmap.GetJMax();
-    nSamples[2] = bmap.GetKMax();
-
-    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gnBoundarySamples, nSamples, 
-		3*sizeof(unsigned int), 0, cudaMemcpyHostToDevice) );
-
-    float origin[3];
-    origin[0] = bmap.GetDomain().getV1().getX();
-    origin[1] = bmap.GetDomain().getV1().getY();
-    origin[2] = bmap.GetDomain().getV1().getZ();
-
-    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryOrigin, origin, 
-		3*sizeof(float), 0, cudaMemcpyHostToDevice) );
-
-    float dx = bmap.GetDx();
-
-    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gDx, &dx, 
-		sizeof(float), 0, cudaMemcpyHostToDevice) );
-
-    float restDist = bmap.GetRestDistance();
-
-    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gRestDistance, &restDist, 
-		sizeof(float), 0, cudaMemcpyHostToDevice) );*/
-
+    system("pause");
 }
 //-----------------------------------------------------------------------------
 // allocates and initializes memory needed for the two scale particle 
@@ -2114,6 +2089,8 @@ void ParticleSimulation::AdvanceSubParticles ()
         this->sortSubParticleIdsByHash();
         this->computeSubParticleCellStartEndList();
         this->computeSubParticleDensityPressure(); 
+
+        this->projectQuantities();
         mTimer.Start();
         this->computeSubParticleAcceleration();
         mTimer.Stop();
@@ -2127,6 +2104,45 @@ void ParticleSimulation::AdvanceSubParticles ()
         cout << e.what() << endl;
         system("pause");
     }
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::AdvanceTwoScale ()
+{
+    try
+    {
+        this->map();
+
+        this->computeParticleHash();
+        this->sortParticleIdsByHash();
+        this->computeCellStartEndList();
+        this->computeDensityPressure();
+        this->computeAcceleration();
+        
+        this->computeParticleState();
+        this->collect();
+        this->initializeSubParticles(); 
+        this->projectQuantities();
+
+        this->computeSubParticleHash();
+        this->sortSubParticleIdsByHash();
+        this->computeSubParticleCellStartEndList();
+        this->computeSubParticleDensityPressure(); 
+        this->computeSubParticleAcceleration();
+    
+        this->integrate();
+        this->integrateSubParticles();
+        this->handleCollisions();
+        this->handleSubParticleCollisions();
+
+        this->unmap();
+
+        mNumTimeSteps++;
+    }
+    catch (runtime_error& e)
+    {  
+        cout << e.what() << endl;
+        system("pause");
+    }    
 }
 //-----------------------------------------------------------------------------
 float ParticleSimulation::GetParticleRadius () const
@@ -2312,7 +2328,7 @@ void ParticleSimulation::computeSubParticleDensityPressure ()
         (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr, 
         mSubParticleIdsDevPtr, mSubParticleSortedIdsDevPtr, 
         mSubParticleCellStartIdsDevPtr, mSubParticleCellEndIdsDevPtr, 
-        mNumSubParticles);
+        mNumParticlesSplit*8);
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::computeAcceleration ()
@@ -2339,7 +2355,7 @@ void ParticleSimulation::computeSubParticleAcceleration ()
         (mSubParticleVertexDataDevPtr, mSubParticleSimulationDataDevPtr, 
         mSubParticleIdsDevPtr, mSubParticleSortedIdsDevPtr, 
         mSubParticleCellStartIdsDevPtr, mSubParticleCellEndIdsDevPtr,
-        mNumSubParticles);
+        mNumParticlesSplit*8);
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::projectQuantities ()
