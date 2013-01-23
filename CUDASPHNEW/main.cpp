@@ -39,7 +39,7 @@ bool gPause;
 int main (int argc, char* argv[]) 
 {
     SphInComplexShapes s(Wm5::Vector3f(-0.5f, -0.5f, -0.5f),
-        Wm5::Vector3f(0.5f, 0.5f, 0.5f), 0.005f, 0.01f, 0.02f, 0.1f, 0.01f);
+        Wm5::Vector3f(0.5f, 0.5f, 0.5f), 0.005f, 0.018f, 0.02f, 0.1f, 0.01f);
     s.SetRectangle(Wm5::Rectangle3f(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
         Wm5::Vector3f(1.0f, 0.0f, 0.0f), Wm5::Vector3f(0.0f, 0.0f, 1.0f),
         0.25f, 0.25f), Wm5::Vector3f(0.0f, 1.0f, 0.0f));

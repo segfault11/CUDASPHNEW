@@ -89,9 +89,34 @@ void SphInComplexShapes::SetRectangle (Wm5::Rectangle3f r, Wm5::Vector3f n)
                 currentCoordinate[2] = k;
                 Wm5::Vector3f currentPosition = 
                     computePositionFromGridCoordinate(currentCoordinate);
-                mDistances.push_back
-                    (Wm5::DistPoint3Rectangle3f(currentPosition, r).Get());
-                mNormals.push_back(n);
+                Wm5::DistPoint3Rectangle3f  dist(currentPosition, r);
+                float distance = dist.Get();
+                
+                
+                if (distance > mRestDistance)
+                {
+                    distance = mRestDistance;
+                }
+                
+                // compute normal
+                float u = dist.GetRectangleCoordinate(0);
+                float v = dist.GetRectangleCoordinate(1);
+                Wm5::Vector3f closest = r.Center + r.Axis[0]*u + r.Axis[1]*v;
+                Wm5::Vector3f normal = currentPosition - closest;
+                normal.Normalize(0.0000001);
+
+                if (n.Dot(normal) >= 0)
+                {
+                    mDistances.push_back(distance);               
+                    mNormals.push_back(normal);
+                }
+                else
+                {
+                    mDistances.push_back(-distance);
+                    mNormals.push_back(normal*-1.0f);                                   
+                }
+
+                // update index grid
                 unsigned int index = computeIndexFromGridCoordinate
                     (currentCoordinate);
                 mIndexGrid[index] = mDistances.size() - 1;
@@ -100,16 +125,9 @@ void SphInComplexShapes::SetRectangle (Wm5::Rectangle3f r, Wm5::Vector3f n)
     }
 
     // initialize densities to 0.0f
-    try
-    {
     for (unsigned int i = 1; i < mDistances.size(); i++)
     {
         mDensities.push_back(0.0f);
-    }
-    }
-    catch (std::exception& e)
-    {
-        std::cout << e.what() << std::endl;
     }
 
     // seed ghost particles
@@ -128,8 +146,6 @@ void SphInComplexShapes::SetRectangle (Wm5::Rectangle3f r, Wm5::Vector3f n)
             {
                 particlePosition = start + (-n*k + r.Axis[1]*j + r.Axis[0]*i)*
                     mParticleSpacing;
-
-                std::cout << particlePosition.Y() << std::endl;
                 particlePositions.push_back(particlePosition);
             }
         }
@@ -201,7 +217,8 @@ void SphInComplexShapes::SaveSlicedDistanceMapToPpm
             else
             {
                 float distance = mDistances[mIndexGrid[index]];
-                ppm.setJET(i, j, distance/(mCompactSupport + mGridSpacing));
+                ppm.setJET(i, j, std::abs(distance)/
+                    (mCompactSupport + mGridSpacing));
             }
         
         }
