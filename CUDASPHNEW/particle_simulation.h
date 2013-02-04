@@ -6,8 +6,7 @@
 #include <string>
 #include <cuda_gl_interop.h>
 #include "util.h"
-
-
+#include "SphInComplexShapes.h"
 #include <iostream>
 using namespace std;
 
@@ -133,6 +132,11 @@ public:
 
     void AdvanceTwoScale ();
 
+
+    // Debug Method to check if the 3d textures are working
+    void Check3DTextures () const;
+
+
     // Access to the opengl vertex buffer object that stores the vertex data
     // (as described in the [ParticleVertexDataIdx] enum) of the particles
     GLuint GetGLParticleVertexBufferObject () const;
@@ -189,7 +193,7 @@ private:
     
     ParticleSimulation ();
     ParticleSimulation (const ParticleSimulation& orig);
-    ParticleSimulation& operator = (const ParticleSimulation& orig);
+    ParticleSimulation& operator= (const ParticleSimulation& orig);
     
     //
     // Private methods
@@ -221,7 +225,7 @@ private:
     inline void computeParticleState ();
     inline void collect ();
     inline void initializeSubParticles ();
-
+    inline void setUpSphInComplexShapes ();
 
     // Member declarations
 
@@ -312,6 +316,12 @@ private:
     unsigned int mBoundaryIndicesDevPtr;
     int* mBoundaryParticleCellStartListDevPtr;          
     int* mBoundaryParticleCellEndListDevPtr;
+
+    // boundary handling / sph in complex shapes
+    SphInComplexShapes* mBoundaryHandling;
+    cudaArray* mBoundaryDistances;
+    cudaArray* mBoundaryDensities;
+    cudaArray* mBoundaryViscosities;
 };
 
 #endif /*include guard of: particle_simulation.h */

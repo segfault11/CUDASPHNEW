@@ -15,6 +15,7 @@ public:
 
     void render () const;
     void renderRegularSubParticles () const;
+    void renderLow () const;
     void setCamera (float ex, float ey, float ez, float cx, float cy, float cz,
 		float ux, float uy, float uz);
 	void setPerspective (float fovy, float aspect, float n, float f);

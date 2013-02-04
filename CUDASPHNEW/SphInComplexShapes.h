@@ -20,16 +20,37 @@ class SphInComplexShapes
 public:
     SphInComplexShapes (Wm5::Vector3f s, Wm5::Vector3f e, float gridSpacing, 
         float restDistance, float compactSupport, float particleMass, 
-        float particleSpacing);
+        float restDensity, float viscosity, float particleSpacing);
     ~SphInComplexShapes ();
 
     //! Sets a plane as an obstacle to the boundary constraints.
     //! \param p Plane.
     //! \param n Normal of the plane. Pointing in negative direction.
     void SetRectangle (Wm5::Rectangle3f r, Wm5::Vector3f n);
+    void SetRectangle (Wm5::Vector3f s, Wm5::Vector3f e, Wm5::Vector3f n);
+    void SetBox (const Wm5::Box3f& b);
+
+    // class access
+    const unsigned int* GetIndexGrid () const;
+    const float* GetDistances () const;
+    const float* GetDensities () const;
+    unsigned int GetGridDimension (unsigned int i) const;
+    unsigned int GetNumGridNodes () const;
+    const Wm5::Vector3f& GetGridStart () const;
+    unsigned int GetNumGridNodesTaken () const;
+    float GetGridSpacing () const;
+    float GetRestDistance () const;
+
+    float ComputeMaxDensity () const;
+
+    static float* CreateDistanceTextureData (const SphInComplexShapes& s);
+    static float* CreateDensityTextureData (const SphInComplexShapes& s);
+    static float* CreateViscosityTextureData (const SphInComplexShapes& s);
+
 
     void SaveSlicedDistanceMapToPpm (const std::string& filename) const;
     void SaveSlicedDensityMapToPpm (const std::string& filename) const;
+    void SaveSlicedViscosityMapToPpm (const std::string& filename) const;
 
 private:
     SphInComplexShapes ();
@@ -56,6 +77,8 @@ private:
     float mGridSpacing;
     float mRestDistance;
     float mCompactSupport;
+    float mRestDensity;
+    float mViscosity;
 
     Wm5::Vector3f mGridStart;
     Wm5::Vector3f mGridEnd;
@@ -67,6 +90,7 @@ private:
     std::vector<Wm5::Vector3f> mNormals;
     std::vector<float> mDistances;    
     std::vector<float> mDensities;
+    std::vector<float> mViscosities;
 };
 
 #endif // SPHBoundaryConstraints.h

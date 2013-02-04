@@ -145,6 +145,24 @@ void TwoScaleStateSub::renderRegularSubParticles () const
 	glutPostRedisplay();
 }
 //-----------------------------------------------------------------------------
+void TwoScaleStateSub::renderLow () const
+{
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(mProgram);
+
+    // draw base particles
+    this->setColor(0.0f, 0.0f, 0.9f);
+    this->setParticleRadius(mParticleRadius);
+    glBindVertexArray(mParticleVertexArrayObject);
+    glDrawArrays(GL_POINTS, 0,  mSimulation->GetNumParticles());
+
+    glFlush();
+	glutSwapBuffers();
+	glutPostRedisplay();
+}
+//-----------------------------------------------------------------------------
 void TwoScaleStateSub::setParticleRadius (float radius) const
 {
     GLint loc = glGetUniformLocation(mProgram, "particleRadius");

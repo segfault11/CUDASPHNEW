@@ -38,15 +38,20 @@ bool gPause;
 
 int main (int argc, char* argv[]) 
 {
-    SphInComplexShapes s(Wm5::Vector3f(-0.5f, -0.5f, -0.5f),
-        Wm5::Vector3f(0.5f, 0.5f, 0.5f), 0.005f, 0.018f, 0.02f, 0.1f, 0.01f);
-    s.SetRectangle(Wm5::Rectangle3f(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
-        Wm5::Vector3f(1.0f, 0.0f, 0.0f), Wm5::Vector3f(0.0f, 0.0f, 1.0f),
-        0.25f, 0.25f), Wm5::Vector3f(0.0f, 1.0f, 0.0f));
-    s.SaveSlicedDistanceMapToPpm("distance_map.ppm");
-    s.SaveSlicedDensityMapToPpm("density_map.ppm");
-    system("pause");
-    /*cudaGLSetGLDevice(0);    
+    //Wm5::Box3f b(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
+    //    Wm5::Vector3f(1.0f, 0.0f, 0.0f), Wm5::Vector3f(0.0f, 1.0f, 0.0f),
+    //    Wm5::Vector3f(0.0f, 0.0f, 1.0f), 0.3f, 0.3f, 0.3f);
+
+    //SphInComplexShapes s(Wm5::Vector3f(-0.5f, -0.5f, -0.5f),
+    //    Wm5::Vector3f(0.5f, 0.5f, 0.5f), 0.005f, 0.018f, 0.02f, 0.1f, 0.01f);
+    ////s.SetRectangle(Wm5::Rectangle3f(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
+    ////    Wm5::Vector3f(1.0f, 0.0f, 0.0f), Wm5::Vector3f(0.0f, 0.0f, 1.0f),
+    ////    0.25f, 0.25f), Wm5::Vector3f(0.0f, 1.0f, 0.0f));
+    //s.SetBox(b);
+    //s.SaveSlicedDistanceMapToPpm("distance_map.ppm");
+    //s.SaveSlicedDensityMapToPpm("density_map.ppm");
+    //system("pause");
+    cudaGLSetGLDevice(0);    
     glutInit(&argc, argv);
     glutInitContextVersion(3, 3);
     glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
@@ -62,7 +67,7 @@ int main (int argc, char* argv[])
     Init();
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
-	glutMainLoop();*/
+	glutMainLoop();
 
     return 0;
 }
@@ -75,9 +80,12 @@ void Init()
         gSim = ParticleSimulation::Example01();
         gSim->Init();
         gSim->Bind();
+        //system("pause");
+        //gSim->Check3DTextures();
+        //system("pause");
         
         gRenderer = new TwoScaleStateSub(*gSim, 1280, 800);
-        gRenderer->setCamera(0.0f, 0.0f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+        gRenderer->setCamera(0.0f, 0.2f, 1.3f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	    gRenderer->setPerspective(60.0f, 1280.0f/800.0f, 0.1f, 100.0f);
           /*
         gObstacle = new TriangleMesh("icosphere.obj");
@@ -123,8 +131,8 @@ void Init()
 void display () 
 {
     //gObstacleRenderer->draw();
-
-    /*if (gSim->GetNumTimesSteps() <= 400)
+    /*
+    if (gSim->GetNumTimesSteps() <= 400)
     {
         gRenderer->render();
         gSim->Advance();
@@ -136,8 +144,9 @@ void display ()
         gSim->AdvanceSubParticles();
     }*/
 
-    gRenderer->render();
-    gSim->AdvanceTwoScale();
+
+    gSim->Advance();
+    gRenderer->renderLow();
     
     //   system("pause");
 }

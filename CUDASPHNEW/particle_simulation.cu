@@ -11,6 +11,8 @@
 #include "boundary_map.h"
 #include <thrust\scan.h>
 #include <stdexcept>
+#include "portable_pixmap.h"
+#include "arr.h"
 
 using namespace std;
 
@@ -37,15 +39,18 @@ texture<int, cudaTextureType1D, cudaReadModeElementType>
     gParticleHashList;
 
 //  information about boundary handling
-__constant__ float gBoundaryOrigin[3];
-__constant__ float gDx;
-__constant__ unsigned int gnBoundarySamples[3];
-__constant__ float gRestDistance;
+__constant__ float gBoundaryGridOrigin[3];
+__constant__ float gBoundaryGridSpacing;
+__constant__ unsigned int gBoundaryGridDimensions[3];
+__constant__ float gBoundaryGridLength[3];
+__constant__ float gBoundaryRestDistance;
 
-texture<float, cudaTextureType1D, cudaReadModeElementType> 
-    gNodeTable;
-texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> 
-    gIndexMap;
+texture<float, cudaTextureType3D, cudaReadModeElementType> 
+    gBoundaryDistances;
+texture<float, cudaTextureType3D, cudaReadModeElementType> 
+    gBoundaryDensities;
+texture<float, cudaTextureType3D, cudaReadModeElementType> 
+    gBoundaryViscosities;
 
 //-----------------------------------------------------------------------------
 //  declaration of aux. functions (device) 
@@ -69,8 +74,8 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
     (const float3& xi, float rhoi, float pi, const float3& vi,
     float* particleVertexData, float* particleSimulationData, 
     int* particleIdList, int start, int end, 
-    float3* force, float3* colGra, float* colLapl,
-    float3* sumPosNeighbor, float* nNeighbors);
+    float3* pressureForce, float3* viscosityForce, float3* colGra, 
+    float* colLapl, float3* sumPosNeighbor, float* nNeighbors);
 __device__ inline void compute_sub_particle_viscosity_pressure_forces_cell
     (const float3& xi, float rhoi, float pi, const float3& vi,
     float* particleVertexData, float* particleSimulationData, 
@@ -215,7 +220,8 @@ __global__ void compute_particle_density_pressure (float* particleVertexData,
     int hash;
     int start;
     int end;
-
+    
+    // compute density contribution from neighbor particles
     for(int k = c0.z; k <= c1.z; k++) 
     {
         for(int j = c0.y; j <= c1.y; j++) 
@@ -232,6 +238,15 @@ __global__ void compute_particle_density_pressure (float* particleVertexData,
     }
     
     density *= gSimParamsDev.particleMass;
+
+    // compute density contribution from the wall
+    float u = (pos.x - gBoundaryGridOrigin[0])/gBoundaryGridLength[0];
+    float v = (pos.y - gBoundaryGridOrigin[1])/gBoundaryGridLength[1];
+    float w = (pos.z - gBoundaryGridOrigin[2])/gBoundaryGridLength[2];
+    float densWall = tex3D(gBoundaryDensities, u, v, w);
+
+    density += densWall;
+
     pressure = gSimParamsDev.gasStiffness*(density - 
         gSimParamsDev.restDensity);
 
@@ -338,6 +353,16 @@ __global__ void compute_particle_acceleration_ifsurf
     force.y = 0.0f;
     force.z = 0.0f;
 
+    float3 pressureForce;
+    pressureForce.x = 0.0f;
+    pressureForce.y = 0.0f;
+    pressureForce.z = 0.0f;
+
+    float3 viscosityForce;
+    viscosityForce.x = 0.0f;
+    viscosityForce.y = 0.0f;
+    viscosityForce.z = 0.0f;
+
     float3 colGra;
     colGra.x = 0.0f;
     colGra.y = 0.0f;
@@ -373,77 +398,79 @@ __global__ void compute_particle_acceleration_ifsurf
                 end = tex1Dfetch(gCellEndList, hash);
                 compute_viscosity_pressure_forces_and_ifsurf_cell(pos, density, 
                     pressure, vel, particleVertexData, particleSimulationData,
-                    particleIdList, start, end, &force, &colGra, &colLapl,
-                    &sumPosNeighbor, &nNeighbors);
+                    particleIdList, start, end, &pressureForce, &viscosityForce, 
+                    &colGra, &colLapl, &sumPosNeighbor, &nNeighbors);
             }
         }
     }
+    
+    // compute distance to wall
+    float u = (pos.x - gBoundaryGridOrigin[0])/gBoundaryGridLength[0];
+    float v = (pos.y - gBoundaryGridOrigin[1])/gBoundaryGridLength[1];
+    float w = (pos.z - gBoundaryGridOrigin[2])/gBoundaryGridLength[2];
+    float distWall = tex3D(gBoundaryDistances, u, v, w);
+    
+    // add viscosity force
+    force.x += viscosityForce.x;
+    force.y += viscosityForce.y;
+    force.z += viscosityForce.z;
 
-    // surface tension
-    colGraNorm = sqrtf(colGra.x*colGra.x + colGra.y*colGra.y 
-        + colGra.z*colGra.z);
+    // add pressure force
+    force.x += pressureForce.x;
+    force.y += pressureForce.y;
+    force.z += pressureForce.z;    
+    
+    float coeff = 1.0f;gSimParamsDev.particleMass/
+            (gSimParamsDev.timeStep*gSimParamsDev.timeStep)*
+            (distWall - gBoundaryRestDistance);
 
-    float fCoeff = tenCoeff*colLapl/colGraNorm;
-
-    if(colGraNorm > gSimParamsDev.normThresh) 
+    if (distWall < gBoundaryRestDistance)
     {
-        force.x -= fCoeff*colGra.x;
-        force.y -= fCoeff*colGra.y;
-        force.z -= fCoeff*colGra.z;
+        float dX = gBoundaryGridSpacing/gBoundaryGridLength[0];
+        float dY = gBoundaryGridSpacing/gBoundaryGridLength[1];
+        float dZ = gBoundaryGridSpacing/gBoundaryGridLength[2];
+        float3 graN;
+
+        graN.x = (tex3D(gBoundaryDistances, u + dX, v, w) - 
+            tex3D(gBoundaryDistances, u - dX, v, w))/(2*dX);
+        graN.y = (tex3D(gBoundaryDistances, u, v + dY, w) - 
+            tex3D(gBoundaryDistances, u, v - dY, w))/(2*dY);
+        graN.z = (tex3D(gBoundaryDistances, u, v, w + dZ) - 
+            tex3D(gBoundaryDistances, u, v, w - dZ))/(2*dZ);
+        normalize(graN);
+
+        // in boundary handling case just, add the pressure force to the force
+        force.x += coeff*graN.x;
+        force.y += coeff*graN.y;
+        force.z += coeff*graN.z;   
+        
+        // viscosity contribution of the wall
+        float visWallCoeff = tex3D(gBoundaryViscosities, u, v, w);
+        force.x -= vel.x*visWallCoeff;
+        force.y -= vel.y*visWallCoeff;
+        force.z -= vel.z*visWallCoeff;
+    } 
+    else
+    {
+        // add surface tension force
+        colGraNorm = sqrtf(colGra.x*colGra.x + colGra.y*colGra.y 
+            + colGra.z*colGra.z);
+
+        float fCoeff = tenCoeff*colLapl/colGraNorm;
+
+        if(colGraNorm > gSimParamsDev.normThresh) 
+        {
+            force.x -= fCoeff*colGra.x;
+            force.y -= fCoeff*colGra.y;
+            force.z -= fCoeff*colGra.z;
+        }    
     }
 
-
-
-    // compute contribution of boundary to the pressure force
-    /*unsigned int i, j, k;
-    
-    i = (unsigned int)((pos.x - gBoundaryOrigin[0])/gDx);
-    j = (unsigned int)((pos.y - gBoundaryOrigin[1])/gDx);
-    k = (unsigned int)((pos.z - gBoundaryOrigin[2])/gDx);
-
-    unsigned int idx2 = i + gnBoundarySamples[0]*(j + gnBoundarySamples[1]*k);
-    unsigned int nodeIdx = tex1Dfetch(gIndexMap, idx2);
-    float dist = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_DISTANCE);
-    
-    float3 bNorm;
-
-    bNorm.x = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_X);
-    bNorm.y = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_Y);
-    bNorm.z = tex1Dfetch(gNodeTable, NC_NUM_ELEMENTS*nodeIdx + NC_NORMAL_Z);
-    
-    float3 boundaryForce;
-    float bCoeff;
-
-    bCoeff = gSimParamsDev.particleMass*(gRestDistance - dist)/
-        (gSimParamsDev.timeStep*gSimParamsDev.timeStep);
-
-    boundaryForce.x = bCoeff*bNorm.x;
-    boundaryForce.y = bCoeff*bNorm.y;
-    boundaryForce.z = bCoeff*bNorm.z;*/
-
-    
     // store the actual acceleration
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_X] = force.x/density;  
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Y] = force.y/density
         - grav;  
     particleSimulationData[id*SD_NUM_ELEMENTS + SD_ACC_Z] = force.z/density;  
-
-    // find out if particle is a surface particle
-    /*int isSurface = 0;
-
-    float3 dCenterMass;
-    dCenterMass.x = pos.x - sumPosNeighbor.x/nNeighbors;
-    dCenterMass.y = pos.y - sumPosNeighbor.y/nNeighbors;
-    dCenterMass.z = pos.z - sumPosNeighbor.z/nNeighbors;
-
-    float dCenterMassNormSq = dCenterMass.x*dCenterMass.x +
-        dCenterMass.y*dCenterMass.y + dCenterMass.z*dCenterMass.z;
-
-    if (colGraNorm > gSimParamsDev.normThresh) {
-        isSurfaceParticle[id] = 1;
-    } else {
-        isSurfaceParticle[id] = 0;
-    }*/
 }
 
 //-----------------------------------------------------------------------------
@@ -629,6 +656,12 @@ __global__ void integrate_euler (float* particleVertexData,
         dt*particleSimulationData[idSim + SD_VEL0_Y];
     particleVertexData[idVert + VD_POS_Z] += 
         dt*particleSimulationData[idSim + SD_VEL0_Z];   
+
+    // compute density contribution from the wall
+   /*float u = (pos.x - gBoundaryGridOrigin[0])/gBoundaryGridLength[0];
+    float v = (pos.y - gBoundaryGridOrigin[1])/gBoundaryGridLength[1];
+    float w = (pos.z - gBoundaryGridOrigin[2])/gBoundaryGridLength[2];
+    float distWall = tex3D(gBoundaryDistances, u, v, w);*/
 }
 //-----------------------------------------------------------------------------
 __global__ void integrate_sub_particles_euler (float* subParticleVertexData, 
@@ -1173,7 +1206,32 @@ __global__ void collect_ids (int* subParticleIdList,
 //        particleVertexData[idVert + VD_POS_Z] -= gSimParamsDev.timeStep*vel.z;
 //    }*/
 //}
+//-----------------------------------------------------------------------------
+__global__ void create_density_slice (float* data, unsigned int width, 
+    unsigned int height, unsigned int depth)
+{
+    int u = blockIdx.x*blockDim.x + threadIdx.x;
+    int v = blockIdx.y*blockDim.y + threadIdx.y;
+    unsigned int idx = width*v + u;
 
+    if (u >= width || v >= height)
+    {
+        return;
+    }
+
+    float3 pos;
+    pos.x = -1.0f + gSimParamsDev.gridSpacing*u;
+    pos.y = gSimParamsDev.gridOrigin[1] + gSimParamsDev.gridSpacing*v;
+    pos.z = gSimParamsDev.gridOrigin[2] + gSimParamsDev.gridSpacing*depth;
+
+    float tu = (pos.x - gBoundaryGridOrigin[0])/gBoundaryGridLength[0];
+    float tv = (pos.y - gBoundaryGridOrigin[1])/gBoundaryGridLength[1];
+    float tw = (pos.z - gBoundaryGridOrigin[2])/gBoundaryGridLength[2];
+
+    float density = tex3D(gBoundaryDistances, tu, tv, tw);
+
+    data[idx] = density;
+}
 //-----------------------------------------------------------------------------
 // definition of aux. functions (device) 
 //-----------------------------------------------------------------------------
@@ -1402,8 +1460,8 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
     (const float3& xi, float rhoi, float pi, const float3& vi,
     float* particleVertexData, float* particleSimulationData, 
     int* particleIdList, int start, int end, 
-    float3* force, float3* colGra, float* colLapl,
-    float3* sumPosNeighbor, float* nNeighbors)
+    float3* pressureForce, float3* viscosityForce, float3* colGra, 
+    float* colLapl, float3* sumPosNeighbor, float* nNeighbors)
 {
     int j;      // neighbor index in particle list
     float3 xj;  // neighbor particle's position
@@ -1465,16 +1523,16 @@ __device__ inline void compute_viscosity_pressure_forces_and_ifsurf_cell
             // compute pressure force
             d = (h-rn)*(h-rn);
 
-            force->x -= pressure*grad*d/rn*r.x;
-            force->y -= pressure*grad*d/rn*r.y;
-            force->z -= pressure*grad*d/rn*r.z;
+            pressureForce->x -= pressure*grad*d/rn*r.x;
+            pressureForce->y -= pressure*grad*d/rn*r.y;
+            pressureForce->z -= pressure*grad*d/rn*r.z;
         
             // compute viscosity force
             d = (h-rn);
 
-            force->x += mu*(vj.x-vi.x)*m/rhoj*lapl*d;
-            force->y += mu*(vj.y-vi.y)*m/rhoj*lapl*d;
-            force->z += mu*(vj.z-vi.z)*m/rhoj*lapl*d;
+            viscosityForce->x += mu*(vj.x-vi.x)*m/rhoj*lapl*d;
+            viscosityForce->y += mu*(vj.y-vi.y)*m/rhoj*lapl*d;
+            viscosityForce->z += mu*(vj.z-vi.z)*m/rhoj*lapl*d;
 
             // compute color gradient
             d = (h*h-rn*rn)*(h*h-rn*rn);
@@ -1614,13 +1672,12 @@ void set_simulation_domain (float xs, float ys, float zs, float xe,
 void compute_particle_kernel_invocation_information 
     (unsigned int& nThreadsBlock, unsigned int& nBlocks, 
     unsigned int numParticles);
-
+void set_up_3d_float_texture (struct textureReference* texref, 
+    cudaArray* arr, float* data, unsigned int dim[3]);
 
 //-----------------------------------------------------------------------------
 //  Definition of ParticleSimulation class 
 //-----------------------------------------------------------------------------
-/* Set everything to NULL/0
-*/
 ParticleSimulation::ParticleSimulation (): mParticleVertexData(NULL), 
     mParticleSimulationData(NULL), mParticleVertexDataDevPtr(NULL),
     mParticleSimulationDataDevPtr(NULL), mParticleIdsDevPtr(NULL),
@@ -1691,7 +1748,7 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     ParticleSimulation* sim = new ParticleSimulation();
 
     // create box (cube) of particles
-    create_particle_box(-0.65f, -0.45f, -0.25f, 0.5f, 40000, 
+    create_particle_box(-0.45f, -0.25f, -0.25f, 0.5f, 40000, 
         &sim->mParticleVertexData, &sim->mParticleSimulationData,
         &sim->mParameters.numParticles);
 
@@ -1729,11 +1786,12 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.laplPoly6Sub = sim->mParameters.laplPoly6*512.0f;
     sim->mParameters.gradSpikySub = sim->mParameters.gradSpiky*64.0f;
     sim->mParameters.laplViscSub  =  sim->mParameters.laplVisc*64.0f;
-
-    sim->mParameters.timeStep  = 0.001;
+    sim->mParameters.
+    
+    timeStep  = 0.003;
     sim->mParameters.timeStepSubParticles = 0.001f;
     
-    set_simulation_domain(-2.5, -2.5, -2.5, 2.5, 2.5, 2.5, h, h/2.0f,
+    set_simulation_domain(-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, h, h/2.0f,
         &sim->mParameters);
 
     // set fluid volume
@@ -1756,6 +1814,8 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.nPartTresh = 20.0f;
     sim->_leftI = 0.0f;
     sim->_rightI = 1.0f;
+
+
     //printf("h %")
     return sim;
 }
@@ -1943,29 +2003,9 @@ void ParticleSimulation::Init ()
     //        - make threadsPerBlock and blocks function parameters
     compute_particle_kernel_invocation_information(mThreadsPerBlock, mNumBlocks, 
         mParameters.numParticles);
-    //mThreadsPerBlock = mParameters.numParticles < 256 ? 
-    //    mParameters.numParticles : 256;
-    //mNumBlocks = mParameters.numParticles % mThreadsPerBlock == 0 ?
-    //    mParameters.numParticles/mThreadsPerBlock : 
-    //    mParameters.numParticles/mThreadsPerBlock + 1; 
 
+    this->setUpSphInComplexShapes();
     
-    //
-    // Init boundary handling
-    //
-
-
-    try
-    {
-        CUDA_SAFE_CALL( cudaMalloc(&mDeviceMemory, sizeof(float)*1024*1024*25) );
-    }
-    catch (std::runtime_error& e)
-    {
-        std::cout << e.what() << std::endl;
-        system("pause");
-    }
-
-    system("pause");
 }
 //-----------------------------------------------------------------------------
 // allocates and initializes memory needed for the two scale particle 
@@ -2056,9 +2096,9 @@ void ParticleSimulation::Advance ()
         this->computeCellStartEndList();
         this->computeDensityPressure();
         this->computeAcceleration();
-        this->computeParticleState();
-        this->collect();
-        this->initializeSubParticles(); 
+        //this->computeParticleState();
+        ///this->collect();
+        //this->initializeSubParticles(); 
         //this->computeSubParticleHash();
         //this->sortSubParticleIdsByHash();
         //this->computeSubParticleCellStartEndList();
@@ -2067,7 +2107,7 @@ void ParticleSimulation::Advance ()
         //this->computeSubParticleAcceleration();
         this->integrate();
         //this->integrateSubParticles();
-        this->handleCollisions();
+        //this->handleCollisions();
         //this->handleSubParticleCollisions();
         this->unmap();
 
@@ -2143,6 +2183,49 @@ void ParticleSimulation::AdvanceTwoScale ()
         cout << e.what() << endl;
         system("pause");
     }    
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::Check3DTextures () const
+{
+    // compute a higher res slice of the density data using intrinsic trilinear
+    // interpolation to check of the textures have been set up correctly.
+
+    unsigned int width = mParameters.gridDim[0];
+    unsigned int height = mParameters.gridDim[1];
+    float* sliceDataDevPtr;
+
+    CUDA_SAFE_CALL( cudaMalloc(&sliceDataDevPtr, sizeof(float)*width*height) );
+    
+    dim3 blockSize(16, 16, 1);
+    dim3 gridSize(width/blockSize.x + 1, height/blockSize.y + 1);
+    
+    create_density_slice <<<gridSize, blockSize>>> (sliceDataDevPtr, 
+        width, height, mParameters.gridDim[2]/2);
+
+    float* sliceData = new float[width*height];
+    CUDA_SAFE_CALL( cudaMemcpy(sliceData, sliceDataDevPtr, 
+        sizeof(float)*width*height, cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaFree(sliceDataDevPtr) );
+    
+    PortablePixmap ppm(width, height, 255);
+
+    float maxDensity = mBoundaryHandling->ComputeMaxDensity();
+    float restDistance = mBoundaryHandling->GetRestDistance();
+    
+    for (unsigned int j = 0; j < height; j++)
+    {
+        for (unsigned int i = 0; i < width; i++)
+        {
+            unsigned int idx = i + j*width;
+            float density = sliceData[idx];
+           
+            ppm.setJET(i,j, std::abs(density)/restDistance);
+        }
+    }
+
+    ppm.save("3dtextest.ppm");
+
+    delete[] sliceData;
 }
 //-----------------------------------------------------------------------------
 float ParticleSimulation::GetParticleRadius () const
@@ -2487,10 +2570,10 @@ void ParticleSimulation::collect ()
         8*mNumParticlesSplit);
 }
 //-----------------------------------------------------------------------------
-//  initializes new sub particles if a parent particle has changed its state 
-//  from "default" to "boundary" or "split"
 void ParticleSimulation::initializeSubParticles () 
 {
+    //  initializes new sub particles if a parent particle has changed its 
+    //  state from "default" to "boundary" or "split"   
     if (mNumParticlesSplit > 0)
     {
         initialize_sub_particles <<<mNumBlocksSplit, mThreadsPerBlockSplit>>> 
@@ -2508,6 +2591,84 @@ void ParticleSimulation::initializeSubParticles ()
             mParticleSimulationDataDevPtr, mParticleStatesDevPtr, 
             mNumParticlesBoundary);
     }
+}
+//-----------------------------------------------------------------------------
+void ParticleSimulation::setUpSphInComplexShapes ()
+{
+    // set up the three dimensional textures that store the boundary 
+    // information of the SPH in complex shapes paper (density contribution, 
+    // distances).
+
+    // create boundary handling data
+    Wm5::Vector3f s(-0.8f, -0.6f, -0.4f); 
+    Wm5::Vector3f e(0.8f, 0.6f, 0.4f);
+
+    float h = mParameters.compactSupport;
+    float particleSpacing = std::powf(mParameters.particleMass/mParameters.restDensity, 1.0f/3.0f);
+    float mass = mParameters.particleMass;
+
+    mBoundaryHandling = new SphInComplexShapes(s, e, h/4.0f, h, h, mass, 
+        mParameters.restDensity, mParameters.dynamicViscosity, particleSpacing);
+    
+    Wm5::Box3f b(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
+        Wm5::Vector3f(1.0f, 0.0f, 0.0f), Wm5::Vector3f(0.0f, 1.0f, 0.0f),
+        Wm5::Vector3f(0.0f, 0.0f, 1.0f), 0.7f, 0.5f, 0.3f);
+    mBoundaryHandling->SetBox(b);
+    mBoundaryHandling->SaveSlicedDistanceMapToPpm("distances.ppm");
+    mBoundaryHandling->SaveSlicedViscosityMapToPpm("viscosities.ppm");
+
+    // send boundary grid information to device
+    float gridOrigin[3];
+    gridOrigin[0] = mBoundaryHandling->GetGridStart().X();
+    gridOrigin[1] = mBoundaryHandling->GetGridStart().Y();
+    gridOrigin[2] = mBoundaryHandling->GetGridStart().Z();
+
+    unsigned int gridDimensions[3];
+    gridDimensions[0] = mBoundaryHandling->GetGridDimension(0);
+    gridDimensions[1] = mBoundaryHandling->GetGridDimension(1);
+    gridDimensions[2] = mBoundaryHandling->GetGridDimension(2);
+    float gridSpacing = mBoundaryHandling->GetGridSpacing();
+    float restDistance = mBoundaryHandling->GetRestDistance();
+    float gridLength[3];
+    gridLength[0] = (gridDimensions[0] - 1)*gridSpacing;
+    gridLength[1] = (gridDimensions[1] - 1)*gridSpacing;
+    gridLength[2] = (gridDimensions[2] - 1)*gridSpacing;
+
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryGridOrigin, 
+        gridOrigin, 3*sizeof(float)) );
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryGridDimensions, 
+       gridDimensions, 3*sizeof(unsigned int)) );    
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryGridLength, 
+       gridLength, 3*sizeof(float)) );
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryGridSpacing, 
+       &gridSpacing, sizeof(float)) );
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(gBoundaryRestDistance, 
+       &restDistance, sizeof(float)) );
+
+    // set up 3d textures
+    float* densityTexData = 
+        SphInComplexShapes::CreateDensityTextureData(*mBoundaryHandling);
+
+    set_up_3d_float_texture(&gBoundaryDensities, mBoundaryDensities, 
+        densityTexData, gridDimensions);
+    
+    delete[] densityTexData;
+
+    float* distanceTexData =
+        SphInComplexShapes::CreateDistanceTextureData(*mBoundaryHandling);
+
+    set_up_3d_float_texture(&gBoundaryDistances, mBoundaryDistances, 
+        distanceTexData, gridDimensions);
+
+    delete[] distanceTexData;
+
+    float* viscosityTexData =
+        SphInComplexShapes::CreateViscosityTextureData(*mBoundaryHandling);
+
+    set_up_3d_float_texture(&gBoundaryViscosities, mBoundaryViscosities, 
+        viscosityTexData, gridDimensions);
+
+    delete[] viscosityTexData;
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::map () 
@@ -2691,17 +2852,18 @@ unsigned int ParticleSimulation::GetSizeMemoryGPU () const
 //-----------------------------------------------------------------------------
 //  definition of aux. functions
 //-----------------------------------------------------------------------------
-// Creates a set of particles, that are aligned in a cube, given the starting
-// point of the box [sx, sy, sz] the length of the cube in each direction [d]
-// and the approximate amount of total particles [numParticles].
-//
-// Returns a pointer to the vertex data of the particles in [particleVD] and
-// a pointer to the simulation data of the particles in [particleSD] and the
-// actual amount of particles created.
 void create_particle_box (float sx, float sy, float sz, float d, 
     unsigned int numParticles, float** particleVD, float** particleSD,
     unsigned int* numParticlesCreated)
 {
+    // Creates a set of particles, that are aligned in a cube, given the starting
+    // point of the box [sx, sy, sz] the length of the cube in each direction [d]
+    // and the approximate amount of total particles [numParticles].
+    //
+    // Returns a pointer to the vertex data of the particles in [particleVD] and
+    // a pointer to the simulation data of the particles in [particleSD] and the
+    // actual amount of particles created
+
     // computed number of particles in each direction
     unsigned int num = pow(static_cast<double>(numParticles), 1.0/3.0);
     *numParticlesCreated = num*num*num;
@@ -2743,13 +2905,14 @@ void create_particle_box (float sx, float sy, float sz, float d,
         sizeof(float)*SD_NUM_ELEMENTS*(*numParticlesCreated));
 }
 //-----------------------------------------------------------------------------
-// Sets the simulation domain in the [parameters], based on a starting point
-// [xs, ys, zs] an ending point [xe, ye, ze] and the distance between two
-// grid points [gridSpacing].
 void set_simulation_domain (float xs, float ys, float zs, float xe,
     float ye, float ze, float gridSpacing, float gridSpacingSubParticles,
     SimulationParameters* parameters)
 {
+    // Sets the simulation domain in the [parameters], based on a starting point
+    // [xs, ys, zs] an ending point [xe, ye, ze] and the distance between two
+    // grid points [gridSpacing].
+
     parameters->gridOrigin[0] = xs;
     parameters->gridOrigin[1] = ys;
     parameters->gridOrigin[2] = zs;
@@ -2780,4 +2943,58 @@ void compute_particle_kernel_invocation_information
     nThreadsBlock = numParticles > 256 ? 256 : numParticles;
     nBlocks = numParticles % nThreadsBlock == 0 ? numParticles/nThreadsBlock : 
         numParticles/nThreadsBlock + 1;
+}
+//-----------------------------------------------------------------------------
+void set_up_3d_float_texture (struct textureReference* texRef, 
+    cudaArray* arr, float* data, unsigned int dim[3])
+{
+    // debug! set all arr vals to 0.5f
+    /*for (unsigned int i = 0; i < dim[0]*dim[1]*dim[2]; i++)
+    {
+        if (i % 2)
+        {
+            data[i] = 1.0f;
+        }
+        else
+        {
+            data[i] = 0.5f;
+        }
+    }*/
+
+
+    // set allocation parmeters
+    cudaChannelFormatDesc descf = cudaCreateChannelDesc(32, 0, 0, 0,
+		cudaChannelFormatKindFloat);
+    cudaExtent extent;
+    extent.width = dim[0];
+    extent.height = dim[1];
+    extent.depth = dim[2];
+
+    // alloc cuda array
+    CUDA_SAFE_CALL( cudaMalloc3DArray(&arr, &descf, extent) );
+    
+    // set copy parameters
+    cudaMemcpy3DParms copyParams;
+    memset(&copyParams, 0, sizeof(cudaMemcpy3DParms));
+    
+    copyParams.srcPtr = make_cudaPitchedPtr((void *)data, 
+        extent.width*sizeof(float), extent.width, extent.height);
+    
+    copyParams.dstArray = arr;
+    copyParams.extent = extent;
+    copyParams.kind = cudaMemcpyHostToDevice;
+
+    // transfer 3d data to cuda array
+    CUDA_SAFE_CALL( cudaMemcpy3D(&copyParams) );
+
+
+    // set texture parameters
+    texRef->normalized = true;                      
+    texRef->filterMode = cudaFilterModeLinear;      
+    texRef->addressMode[0] = cudaAddressModeClamp;   
+    texRef->addressMode[1] = cudaAddressModeClamp;
+    texRef->addressMode[2] = cudaAddressModeClamp;
+
+    // bind array to global texture 
+    cudaBindTextureToArray(texRef, arr, &descf);
 }

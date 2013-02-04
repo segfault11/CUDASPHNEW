@@ -233,6 +233,9 @@
     <ClInclude Include="SphInComplexShapes.h">
       <Filter>ParticleSimulation\SPH in Complex Shapes</Filter>
     </ClInclude>
+    <ClInclude Include="arr.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="obstacle_grid.cpp">

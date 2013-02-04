@@ -38,6 +38,7 @@
     <ClInclude Include="cgtk\include\geometry.h" />
     <ClInclude Include="cgtk\include\math.h" />
     <ClInclude Include="cgtk\include\opengl.h" />
+    <ClInclude Include="arr.h" />
     <ClInclude Include="point_in_mesh_test.h" />
     <ClInclude Include="sparse_voxel_map.h" />
     <ClInclude Include="SpatialHashMap.h" />

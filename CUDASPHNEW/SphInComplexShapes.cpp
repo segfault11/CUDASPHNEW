@@ -8,6 +8,8 @@
 
 #include "SphInComplexShapes.h"
 #include <Wm5DistPoint3Rectangle3.h>
+#include <Wm5DistPoint3Box3.h>
+#include "Wm5Matrix3.h"
 #include "portable_pixmap.h"
 #include <stdexcept>
 
@@ -20,17 +22,23 @@
 //-----------------------------------------------------------------------------
 inline bool operator< (const Wm5::Vector3f& s, const Wm5::Vector3f& e);
 inline float evaluateDensityKernel (float sqDist, float h);
+inline float evaluateViscosityKernel (float sqDist, float h);
 inline float computeSquaredDistance(const Wm5::Vector3f& a,
     const Wm5::Vector3f& b);
+inline bool isInsideBox (const Wm5::Vector3f& p, const Wm5::Box3f& b);
+inline float computeSignedDistancePoint3Box3(const Wm5::Vector3f& pos, 
+    const Wm5::Box3f& box);
 //-----------------------------------------------------------------------------
 // Public class method definitions
 //-----------------------------------------------------------------------------
 SphInComplexShapes::SphInComplexShapes (Wm5::Vector3f s, Wm5::Vector3f e, 
         float gridSpacing, float restDistance, float compactSupport, 
-        float particleMass, float particleSpacing)
-: mGridStart(s), mGridEnd(e), mParticleMass(particleMass), 
-    mParticleSpacing(particleSpacing), mGridSpacing(gridSpacing), 
-    mRestDistance(restDistance), mCompactSupport(compactSupport)
+        float particleMass, float restDensity, float viscosity,
+        float particleSpacing)
+: mGridStart(s), mGridEnd(e), mGridSpacing(gridSpacing), 
+    mRestDistance(restDistance), mCompactSupport(compactSupport),
+    mParticleMass(particleMass), mRestDensity(restDensity), 
+    mViscosity(viscosity), mParticleSpacing(particleSpacing)
 {
     if (!(s < e))
     {
@@ -89,9 +97,8 @@ void SphInComplexShapes::SetRectangle (Wm5::Rectangle3f r, Wm5::Vector3f n)
                 currentCoordinate[2] = k;
                 Wm5::Vector3f currentPosition = 
                     computePositionFromGridCoordinate(currentCoordinate);
-                Wm5::DistPoint3Rectangle3f  dist(currentPosition, r);
+                Wm5::DistPoint3Rectangle3f dist(currentPosition, r);
                 float distance = dist.Get();
-                
                 
                 if (distance > mRestDistance)
                 {
@@ -193,6 +200,232 @@ void SphInComplexShapes::SetRectangle (Wm5::Rectangle3f r, Wm5::Vector3f n)
     }
 }
 //-----------------------------------------------------------------------------
+void SphInComplexShapes::SetBox (const Wm5::Box3f& b)
+{
+    this->reset();
+    
+    // compute signed distances
+    for (unsigned int i = 0; i < mGridDimensions[0]; i++)
+    {
+        for (unsigned int j = 0; j < mGridDimensions[1]; j++)
+        {
+            for (unsigned int k = 0; k < mGridDimensions[2]; k++)
+            {
+                Wm5::Vector3f pos = computePositionFromGridCoordinate(i, j, k);
+                float dist = computeSignedDistancePoint3Box3(pos, b);
+
+                if (std::abs(dist) < mCompactSupport)
+                {
+                    if (std::abs(dist) > mRestDistance)
+                    {
+                        dist = dist/std::abs(dist)*mRestDistance;
+                    }
+
+                    mDistances.push_back(dist);
+                    unsigned int idx = computeIndexFromGridCoordinate(i, j, k);
+                    mIndexGrid[idx] = mDistances.size() - 1; 
+                }
+            }
+        }    
+    }
+    
+    // seed particles
+    float d = mCompactSupport + mParticleSpacing;
+    Wm5::Box3f outerBox(b);
+    outerBox.Extent[0] += d;
+    outerBox.Extent[1] += d;
+    outerBox.Extent[2] += d;
+    Wm5::Vector3f s(outerBox.Center.X() - outerBox.Extent[0],
+        outerBox.Center.Y() - outerBox.Extent[1],
+        outerBox.Center.Z() - outerBox.Extent[2]);
+    std::vector<Wm5::Vector3f> particlePositions;
+    unsigned int iMax = 2*outerBox.Extent[0]/mParticleSpacing;
+    unsigned int jMax = 2*outerBox.Extent[1]/mParticleSpacing;
+    unsigned int kMax = 2*outerBox.Extent[2]/mParticleSpacing;
+
+    for (unsigned int k = 0; k <= kMax; k++)
+    {
+        for (unsigned int j = 0; j <= jMax; j++)
+        {            
+            for (unsigned int i = 0; i <= iMax; i++)
+            {
+                Wm5::Vector3f pos = s + (outerBox.Axis[0]*i + outerBox.Axis[1]*j
+                    + outerBox.Axis[2]*k)*mParticleSpacing;
+                if (!isInsideBox(pos, b))
+                {
+                    particlePositions.push_back(pos);
+                }
+            }
+        }
+    }
+
+    // initialize densitiy and viscosity contributions to 0.0f
+    for (unsigned int i = 1; i < mDistances.size(); i++)
+    {
+        mDensities.push_back(0.0f);
+        mViscosities.push_back(0.0f);
+    }
+
+    // project each density contribution of the ghost particle to the grid 
+    // cells
+    for (unsigned int l = 0; l < particlePositions.size(); l++)
+    {
+        Wm5::Vector3f position = particlePositions[l];
+        Wm5::Vector3f delta(mCompactSupport, mCompactSupport, mCompactSupport);
+        Wm5::Vector3f start = position - delta;
+        Wm5::Vector3f end = position + delta;
+        Wm5::Tuple<3, int> cs = computeGridCoordinate(start);
+        Wm5::Tuple<3, int> ce = computeGridCoordinate(end);
+
+        for (unsigned int k = cs[2]; k <= ce[2]; k++)
+        {
+            for (unsigned int j = cs[1]; j <= ce[1]; j++)
+            {    
+                for (unsigned int i = cs[0]; i <= ce[0]; i++)
+                {
+                   Wm5::Vector3f nodePosition = 
+                        computePositionFromGridCoordinate(i, j, k); 
+                    unsigned int index = 
+                        computeIndexFromGridCoordinate(i, j, k);
+                    unsigned int node = mIndexGrid[index];
+
+                    if (node != 0)
+                    {
+                        float sqDist = computeSquaredDistance(position, 
+                            nodePosition);
+                        mDensities[node] += evaluateDensityKernel
+                            (sqDist, mCompactSupport);
+                        mViscosities[node] += evaluateViscosityKernel
+                            (sqDist, mCompactSupport);      
+                    }    
+                }
+            }
+        }
+    }
+
+    // multiply densities by particle mass
+    for (unsigned int i = 1; i < mDistances.size(); i++)
+    {
+        mDensities[i] *= mParticleMass;
+        mViscosities[i] *= mViscosity*mParticleMass/mRestDensity; 
+    }
+
+}
+//-----------------------------------------------------------------------------
+const unsigned int* SphInComplexShapes::GetIndexGrid () const
+{
+    return mIndexGrid;
+}
+//-----------------------------------------------------------------------------
+const float* SphInComplexShapes::GetDistances () const
+{
+    return mDistances.data();
+}
+//-----------------------------------------------------------------------------
+const float* SphInComplexShapes::GetDensities () const
+{
+    return mDensities.data();
+}
+//-----------------------------------------------------------------------------
+unsigned int SphInComplexShapes::GetGridDimension (unsigned int i) const
+{
+    if (i > 2)
+    {
+        throw std::runtime_error("In SphInComplexShapes::GetGridDimension: \
+            i should be 0, 1 or 2");
+    }
+
+    return mGridDimensions[i];
+}
+//-----------------------------------------------------------------------------
+unsigned int SphInComplexShapes::GetNumGridNodes () const 
+{
+    return mNumGridNodes;
+}
+//-----------------------------------------------------------------------------
+const Wm5::Vector3f& SphInComplexShapes::GetGridStart () const
+{
+    return mGridStart;
+}
+//-----------------------------------------------------------------------------
+unsigned int SphInComplexShapes::GetNumGridNodesTaken () const
+{
+    return mDistances.size();
+}
+//-----------------------------------------------------------------------------
+float SphInComplexShapes::GetGridSpacing () const
+{
+    return mGridSpacing;
+}
+//-----------------------------------------------------------------------------
+float SphInComplexShapes::GetRestDistance () const
+{
+    return mRestDistance;
+}
+//-----------------------------------------------------------------------------
+float* SphInComplexShapes::CreateDistanceTextureData 
+    (const SphInComplexShapes& s)
+{
+    float* texData = new float[s.GetNumGridNodes()];
+    
+    for (unsigned int k = 0; k < s.mGridDimensions[2]; k++)
+    {
+        for (unsigned int j = 0; j < s.mGridDimensions[1]; j++)
+        {
+            for (unsigned int i = 0; i < s.mGridDimensions[0]; i++)
+            {
+                unsigned int index = s.computeIndexFromGridCoordinate(i, j, k);
+                unsigned int nodeIdx = s.mIndexGrid[index];
+                texData[index] = s.mDistances[nodeIdx];
+            }
+        }
+    }
+    
+    return texData;
+}
+//-----------------------------------------------------------------------------
+float* SphInComplexShapes::CreateDensityTextureData 
+    (const SphInComplexShapes& s)
+{
+    float* texData = new float[s.GetNumGridNodes()];
+    
+    for (unsigned int k = 0; k < s.mGridDimensions[2]; k++)
+    {
+        for (unsigned int j = 0; j < s.mGridDimensions[1]; j++)
+        {
+            for (unsigned int i = 0; i < s.mGridDimensions[0]; i++)
+            {
+                unsigned int index = s.computeIndexFromGridCoordinate(i, j, k);
+                unsigned int nodeIdx = s.mIndexGrid[index];
+                texData[index] = s.mDensities[nodeIdx];
+            }
+        }
+    }
+    
+    return texData;
+}
+//-----------------------------------------------------------------------------
+float* SphInComplexShapes::CreateViscosityTextureData 
+    (const SphInComplexShapes& s)
+{
+    float* texData = new float[s.GetNumGridNodes()];
+    
+    for (unsigned int k = 0; k < s.mGridDimensions[2]; k++)
+    {
+        for (unsigned int j = 0; j < s.mGridDimensions[1]; j++)
+        {
+            for (unsigned int i = 0; i < s.mGridDimensions[0]; i++)
+            {
+                unsigned int index = s.computeIndexFromGridCoordinate(i, j, k);
+                unsigned int nodeIdx = s.mIndexGrid[index];
+                texData[index] = s.mViscosities[nodeIdx];
+            }
+        }
+    }
+    
+    return texData;
+}
+//-----------------------------------------------------------------------------
 void SphInComplexShapes::SaveSlicedDistanceMapToPpm 
     (const std::string& filename) const
 {
@@ -209,22 +442,31 @@ void SphInComplexShapes::SaveSlicedDistanceMapToPpm
             currentCoordinate[2] = k;
             unsigned int index = computeIndexFromGridCoordinate
                 (currentCoordinate);
-
-            if (mIndexGrid[index] == 0)
-            {
-                ppm.set(i, j, 0, 0, 0);
-            }
-            else
-            {
-                float distance = mDistances[mIndexGrid[index]];
-                ppm.setJET(i, j, std::abs(distance)/
-                    (mCompactSupport + mGridSpacing));
-            }
+            
+            float distance = mDistances[mIndexGrid[index]];
+            ppm.setJET(i, j, std::abs(distance)/(mRestDistance));
         
         }
     }
     
     ppm.save(filename);
+}
+//-----------------------------------------------------------------------------
+float SphInComplexShapes::ComputeMaxDensity () const
+{
+    float maxDensity = 0.0f;
+
+    for (unsigned int i = 0; i < mDensities.size(); i++)
+    {
+        float density = mDensities[i];
+
+        if (density > maxDensity)
+        {
+            maxDensity = density;
+        } 
+    }
+
+    return maxDensity;
 }
 //-----------------------------------------------------------------------------
 void SphInComplexShapes::SaveSlicedDensityMapToPpm 
@@ -263,6 +505,50 @@ void SphInComplexShapes::SaveSlicedDensityMapToPpm
             {
                 float density = mDensities[mIndexGrid[index]];
                 ppm.setJET(i, j, density/maxDensity);
+            }
+        
+        }
+    }
+    
+    ppm.save(filename);
+}
+//-----------------------------------------------------------------------------
+void SphInComplexShapes::SaveSlicedViscosityMapToPpm
+    (const std::string& filename) const
+{
+    PortablePixmap ppm(mGridDimensions[0], mGridDimensions[1], 255);
+    unsigned int k = mGridDimensions[2]/2;
+    float maxViscosity = 0.0f;
+
+    for (unsigned int i = 0; i < mViscosities.size(); i++)
+    {
+        float viscosity = mViscosities[i];
+
+        if (viscosity > maxViscosity)
+        {
+            maxViscosity = viscosity;
+        } 
+    }
+
+    for (unsigned int i = 0; i < mGridDimensions[0]; i++)
+    {
+        for (unsigned int j = 0; j < mGridDimensions[1]; j++)
+        {
+            Wm5::Tuple<3, int> currentCoordinate;
+            currentCoordinate[0] = i;
+            currentCoordinate[1] = j;
+            currentCoordinate[2] = k;
+            unsigned int index = computeIndexFromGridCoordinate
+                (currentCoordinate);
+
+            if (mIndexGrid[index] == 0)
+            {
+                ppm.setJET(i, j, 0.0f);
+            }
+            else
+            {
+                float viscosity = mViscosities[mIndexGrid[index]];
+                ppm.setJET(i, j, viscosity/maxViscosity);
             }
         
         }
@@ -358,9 +644,11 @@ void SphInComplexShapes::reset ()
     mNormals.clear();
     mDistances.clear();
     mDensities.clear();
+    mViscosities.clear();
     mNormals.push_back(Wm5::Vector3f(0.0f, 0.0f, 0.0f));
     mDistances.push_back(mRestDistance);
     mDensities.push_back(0.0f);
+    mViscosities.push_back(0.0f);
 }
 //-----------------------------------------------------------------------------
 // Definition of file intern aux. functions. 
@@ -389,10 +677,72 @@ float evaluateDensityKernel (float sqDist, float h)
     return coeff*diff*diff*diff;
 }
 //-----------------------------------------------------------------------------
+float evaluateViscosityKernel (float sqDist, float h)
+{
+    float dist = std::sqrtf(sqDist);
+    
+    if (dist > h)
+    {
+        return 0.0f;
+    }
+
+    return 45.0f/(M_PI*h*h*h*h*h*h)*(h - dist);
+}
+//-----------------------------------------------------------------------------
 float computeSquaredDistance (const Wm5::Vector3f& a, const Wm5::Vector3f& b)
 {
     Wm5::Vector3f d = a - b;
 
     return d.SquaredLength();
+}
+//-----------------------------------------------------------------------------
+bool isInsideBox (const Wm5::Vector3f& p, const Wm5::Box3f& b)
+{
+    Wm5::Matrix3f m(b.Axis[0], b.Axis[1], b.Axis[2], false);
+    Wm5::Vector3f t = p - b.Center;
+    t = m*t;
+
+    if (std::abs(t.X()) >= b.Extent[0] || std::abs(t.Y()) >= b.Extent[1] ||
+        std::abs(t.Z()) >= b.Extent[2])
+    {
+        return false;
+    }
+
+    return true;
+ }
+//-----------------------------------------------------------------------------
+float computeSignedDistancePoint3Box3(const Wm5::Vector3f& pos,
+    const Wm5::Box3f& box)
+{
+    Wm5::Matrix3f m(box.Axis[0], box.Axis[1], box.Axis[2], false);
+    Wm5::Vector3f t = pos - box.Center;
+    t = m*t;
+
+    float a = std::abs(t.X()) - box.Extent[0];
+    float b = std::abs(t.Y()) - box.Extent[1];
+    float c = std::abs(t.Z()) - box.Extent[2];
+
+    float distance;
+
+    if (std::abs(a) < std::abs(b))
+    {
+        distance = a;
+    }
+    else
+    {
+        distance = b;
+    }
+
+    if (std::abs(distance) > std::abs(c))
+    {
+        distance = c;
+    }
+
+    if (a > 0.0f || b > 0.0f || c > 0.0f)
+    {
+        distance = Wm5::DistPoint3Box3f(pos, box).Get();
+    }
+
+    return distance;
 }
 //-----------------------------------------------------------------------------
