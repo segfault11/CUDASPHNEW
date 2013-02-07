@@ -408,7 +408,7 @@ __global__ void compute_particle_acceleration_ifsurf
     float u = (pos.x - gBoundaryGridOrigin[0])/gBoundaryGridLength[0];
     float v = (pos.y - gBoundaryGridOrigin[1])/gBoundaryGridLength[1];
     float w = (pos.z - gBoundaryGridOrigin[2])/gBoundaryGridLength[2];
-    float distWall = tex3D(gBoundaryDistances, u, v, w);
+    float distWall = -tex3D(gBoundaryDistances, u, v, w);
     
     // add viscosity force
     force.x += viscosityForce.x;
@@ -420,9 +420,9 @@ __global__ void compute_particle_acceleration_ifsurf
     force.y += pressureForce.y;
     force.z += pressureForce.z;    
     
-    float coeff = 1.0f;gSimParamsDev.particleMass/
+    float coeff = density/
             (gSimParamsDev.timeStep*gSimParamsDev.timeStep)*
-            (distWall - gBoundaryRestDistance);
+            (gBoundaryRestDistance - distWall);
 
     if (distWall < gBoundaryRestDistance)
     {
@@ -437,14 +437,14 @@ __global__ void compute_particle_acceleration_ifsurf
             tex3D(gBoundaryDistances, u, v - dY, w))/(2*dY);
         graN.z = (tex3D(gBoundaryDistances, u, v, w + dZ) - 
             tex3D(gBoundaryDistances, u, v, w - dZ))/(2*dZ);
-        normalize(graN);
+        //normalize(graN);
 
         // in boundary handling case just, add the pressure force to the force
-        force.x += coeff*graN.x;
-        force.y += coeff*graN.y;
-        force.z += coeff*graN.z;   
+        force.x -= coeff*graN.x;
+        force.y -= coeff*graN.y;
+        force.z -= coeff*graN.z;   
         
-        // viscosity contribution of the wall
+        //// viscosity contribution of the wall
         float visWallCoeff = tex3D(gBoundaryViscosities, u, v, w);
         force.x -= vel.x*visWallCoeff;
         force.y -= vel.y*visWallCoeff;
@@ -1052,7 +1052,7 @@ __global__ void initialize_sub_particles (float* subParticleVertexData,
     // if parent particle makes transition from "default" -> "split" (3)
     // "default" -> "boundary" (2), "split" -> "boundary" (14) the sub particle needs
     // to be reinitialized 
-     if (state == 2 || state == 3 || state == 14 || state == 11)
+    // if (state == 2 || state == 3 || state == 14 || state == 11)
     {
         float density = particleSimulationData[id*SD_NUM_ELEMENTS + SD_DENSITY];
         float radicand = 3.0f*gSimParamsDev.particleMass/(4.0f*M_PI*density);
@@ -1748,7 +1748,7 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     ParticleSimulation* sim = new ParticleSimulation();
 
     // create box (cube) of particles
-    create_particle_box(-0.45f, -0.25f, -0.25f, 0.5f, 40000, 
+    create_particle_box(-0.65f, -0.45f, -0.25f, 0.5f, 40000, 
         &sim->mParticleVertexData, &sim->mParticleSimulationData,
         &sim->mParameters.numParticles);
 
@@ -1786,9 +1786,7 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->mParameters.laplPoly6Sub = sim->mParameters.laplPoly6*512.0f;
     sim->mParameters.gradSpikySub = sim->mParameters.gradSpiky*64.0f;
     sim->mParameters.laplViscSub  =  sim->mParameters.laplVisc*64.0f;
-    sim->mParameters.
-    
-    timeStep  = 0.003;
+    sim->mParameters.timeStep  = 0.003;
     sim->mParameters.timeStepSubParticles = 0.001f;
     
     set_simulation_domain(-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, h, h/2.0f,
@@ -1815,8 +1813,6 @@ ParticleSimulation* ParticleSimulation::Example01 ()
     sim->_leftI = 0.0f;
     sim->_rightI = 1.0f;
 
-
-    //printf("h %")
     return sim;
 }
 //-----------------------------------------------------------------------------
@@ -2096,9 +2092,9 @@ void ParticleSimulation::Advance ()
         this->computeCellStartEndList();
         this->computeDensityPressure();
         this->computeAcceleration();
-        //this->computeParticleState();
-        ///this->collect();
-        //this->initializeSubParticles(); 
+        this->computeParticleState();
+        this->collect();
+        this->initializeSubParticles(); 
         //this->computeSubParticleHash();
         //this->sortSubParticleIdsByHash();
         //this->computeSubParticleCellStartEndList();
@@ -2185,7 +2181,7 @@ void ParticleSimulation::AdvanceTwoScale ()
     }    
 }
 //-----------------------------------------------------------------------------
-void ParticleSimulation::Check3DTextures () const
+/*void ParticleSimulation::Check3DTextures () const
 {
     // compute a higher res slice of the density data using intrinsic trilinear
     // interpolation to check of the textures have been set up correctly.
@@ -2226,7 +2222,7 @@ void ParticleSimulation::Check3DTextures () const
     ppm.save("3dtextest.ppm");
 
     delete[] sliceData;
-}
+}*/
 //-----------------------------------------------------------------------------
 float ParticleSimulation::GetParticleRadius () const
 {
@@ -2607,7 +2603,7 @@ void ParticleSimulation::setUpSphInComplexShapes ()
     float particleSpacing = std::powf(mParameters.particleMass/mParameters.restDensity, 1.0f/3.0f);
     float mass = mParameters.particleMass;
 
-    mBoundaryHandling = new SphInComplexShapes(s, e, h/4.0f, h, h, mass, 
+    SphInComplexShapes* mBoundaryHandling = new SphInComplexShapes(s, e, h/4.0f, h, h, mass, 
         mParameters.restDensity, mParameters.dynamicViscosity, particleSpacing);
     
     Wm5::Box3f b(Wm5::Vector3f(0.0f, 0.0f, 0.0f), 
@@ -2669,6 +2665,21 @@ void ParticleSimulation::setUpSphInComplexShapes ()
         viscosityTexData, gridDimensions);
 
     delete[] viscosityTexData;
+    delete mBoundaryHandling;
+
+
+    // set up wall textures for sub particles
+/*
+    {
+    
+    float h = mParameters.compactSupportSub;
+    float particleSpacing = std::powf(mParameters.subParticleMass/mParameters.restDensity, 1.0f/3.0f);
+    float mass = mParameters.subParticleMass;
+
+    SphInComplexShapes* mBoundaryHandling = new SphInComplexShapes(s, e, h/4.0f, h, h, mass, 
+        mParameters.restDensity, mParameters.dynamicViscosity, particleSpacing);
+    
+    }*/
 }
 //-----------------------------------------------------------------------------
 void ParticleSimulation::map () 

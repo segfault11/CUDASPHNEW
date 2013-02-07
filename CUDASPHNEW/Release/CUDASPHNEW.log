@@ -1,4 +1,4 @@
-﻿Build started 2/4/2013 5:14:14 PM.
+﻿Build started 2/7/2013 5:28:04 PM.
      1>Project "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\CUDASPHNEW.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\CUDASPHNEW.unsuccessfulbuild" because "AlwaysCreate" was specified.
@@ -12,33 +12,33 @@
        Skipping target "AddCudaCompilePropsDeps" because all output files are up-to-date with respect to the input files.
        CudaBuild:
          Compiling CUDA source file particle_simulation.cu...
-         cmd.exe /C "C:\Users\Arno\AppData\Local\Temp\713ac0c9e05b4150ada4195cf4de1759.cmd"
+         cmd.exe /C "C:\Users\Arno\AppData\Local\Temp\a433ebfaad934b4db4aab51b56417b29.cmd"
          "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"     --keep-dir "Release" -maxrregcount=0  --machine 32 --compile     -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "Release\particle_simulation.cu.obj" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu"
          
          C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc.exe" -gencode=arch=compute_10,code=\"sm_10,compute_10\" --use-local-env --cl-version 2010 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\libs\WildMagic5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include"     --keep-dir "Release" -maxrregcount=0  --machine 32 --compile     -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "Release\particle_simulation.cu.obj" "C:\Users\Arno\Documents\Projects\CUDASPHNEW\CUDASPHNEW\particle_simulation.cu" 
          particle_simulation.cu
-     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(423): warning : expression has no effect
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1050): warning : variable "state" was declared but never referenced
          
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1333): warning : variable "vj" was declared but never referenced
          
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1338): warning : variable "d" was declared but never referenced
          
-         tmpxft_00000824_00000000-2_particle_simulation.cudafe1.gpu
-         tmpxft_00000824_00000000-7_particle_simulation.cudafe2.gpu
+         tmpxft_0000192c_00000000-2_particle_simulation.cudafe1.gpu
+         tmpxft_0000192c_00000000-7_particle_simulation.cudafe2.gpu
          particle_simulation.cu
      1>c:\users\arno\documents\projects\cudasphnew\cudasphnew\sparse_voxel_map.inl(86): warning : initial value of reference to non-const must be an lvalue
          
      1>c:\users\arno\documents\projects\cudasphnew\cudasphnew\sparse_voxel_map.inl(92): warning : initial value of reference to non-const must be an lvalue
          
-     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(423): warning : expression has no effect
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1050): warning : variable "state" was declared but never referenced
          
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1333): warning : variable "vj" was declared but never referenced
          
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1338): warning : variable "d" was declared but never referenced
          
-         ptxas C:/Users/Arno/AppData/Local/Temp/tmpxft_00000824_00000000-4_particle_simulation.ptx, line 3142; : warning : Double is not supported. Demoting to float
-         tmpxft_00000824_00000000-2_particle_simulation.cudafe1.cpp
-         tmpxft_00000824_00000000-12_particle_simulation.ii
+         ptxas C:/Users/Arno/AppData/Local/Temp/tmpxft_0000192c_00000000-4_particle_simulation.ptx, line 3121; : warning : Double is not supported. Demoting to float
+         tmpxft_0000192c_00000000-2_particle_simulation.cudafe1.cpp
+         tmpxft_0000192c_00000000-12_particle_simulation.ii
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1774): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1779): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1780): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
@@ -46,9 +46,9 @@
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1782): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1783): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
      1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(1789): warning C4305: '=' : truncation from 'double' to 'float'
-     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(2233): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(2730): warning C4018: '<' : signed/unsigned mismatch
-     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(2868): warning C4244: 'initializing' : conversion from 'double' to 'unsigned int', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(2229): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(2741): warning C4018: '<' : signed/unsigned mismatch
+     1>C:/Users/Arno/Documents/Projects/CUDASPHNEW/CUDASPHNEW/particle_simulation.cu(2879): warning C4244: 'initializing' : conversion from 'double' to 'unsigned int', possible loss of data
        CudaBuild:
        Skipping target "CudaBuild" because all output files are up-to-date with respect to the input files.
        ClCompile:
@@ -103,4 +103,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:24.96
+Time Elapsed 00:00:21.75

@@ -444,7 +444,7 @@ void SphInComplexShapes::SaveSlicedDistanceMapToPpm
                 (currentCoordinate);
             
             float distance = mDistances[mIndexGrid[index]];
-            ppm.setJET(i, j, std::abs(distance)/(mRestDistance));
+            ppm.setJET(i, j, distance/(mRestDistance));
         
         }
     }
@@ -646,7 +646,7 @@ void SphInComplexShapes::reset ()
     mDensities.clear();
     mViscosities.clear();
     mNormals.push_back(Wm5::Vector3f(0.0f, 0.0f, 0.0f));
-    mDistances.push_back(mRestDistance);
+    mDistances.push_back(-mRestDistance);
     mDensities.push_back(0.0f);
     mViscosities.push_back(0.0f);
 }

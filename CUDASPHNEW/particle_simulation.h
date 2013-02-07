@@ -318,7 +318,6 @@ private:
     int* mBoundaryParticleCellEndListDevPtr;
 
     // boundary handling / sph in complex shapes
-    SphInComplexShapes* mBoundaryHandling;
     cudaArray* mBoundaryDistances;
     cudaArray* mBoundaryDensities;
     cudaArray* mBoundaryViscosities;

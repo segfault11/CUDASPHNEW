@@ -146,7 +146,7 @@ void display ()
 
 
     gSim->Advance();
-    gRenderer->renderLow();
+    gRenderer->render();
     
     //   system("pause");
 }

@@ -47,7 +47,6 @@ public:
     static float* CreateDensityTextureData (const SphInComplexShapes& s);
     static float* CreateViscosityTextureData (const SphInComplexShapes& s);
 
-
     void SaveSlicedDistanceMapToPpm (const std::string& filename) const;
     void SaveSlicedDensityMapToPpm (const std::string& filename) const;
     void SaveSlicedViscosityMapToPpm (const std::string& filename) const;
